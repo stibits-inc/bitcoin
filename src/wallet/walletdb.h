@@ -63,9 +63,14 @@ public:
     uint32_t nInternalChainCounter;
     CKeyID seed_id; //!< seed hash160
 
+    uint32_t nCoinType;
+    uint32_t nAccount;
+
     static const int VERSION_HD_BASE        = 1;
     static const int VERSION_HD_CHAIN_SPLIT = 2;
-    static const int CURRENT_VERSION        = VERSION_HD_CHAIN_SPLIT;
+
+    static const int VERSION_HD_CHAIN_BIP44 = 3;
+    static const int CURRENT_VERSION        = VERSION_HD_CHAIN_BIP44;
     int nVersion;
 
     CHDChain() { SetNull(); }
@@ -76,6 +81,14 @@ public:
         READWRITE(this->nVersion);
         READWRITE(nExternalChainCounter);
         READWRITE(seed_id);
+
+
+        if (this->nVersion >= VERSION_HD_CHAIN_BIP44)
+        {
+            READWRITE(nCoinType);
+            READWRITE(nAccount);
+        }
+
         if (this->nVersion >= VERSION_HD_CHAIN_SPLIT)
             READWRITE(nInternalChainCounter);
     }
@@ -85,6 +98,8 @@ public:
         nVersion = CHDChain::CURRENT_VERSION;
         nExternalChainCounter = 0;
         nInternalChainCounter = 0;
+        nCoinType             = 0;
+        nAccount              = 0;
         seed_id.SetNull();
     }
 };
