@@ -82,6 +82,8 @@ public:
         READWRITE(nExternalChainCounter);
         READWRITE(seed_id);
 
+        if (this->nVersion >= VERSION_HD_CHAIN_SPLIT)
+            READWRITE(nInternalChainCounter);
 
         if (this->nVersion >= VERSION_HD_CHAIN_BIP44)
         {
@@ -89,8 +91,6 @@ public:
             READWRITE(nAccount);
         }
 
-        if (this->nVersion >= VERSION_HD_CHAIN_SPLIT)
-            READWRITE(nInternalChainCounter);
     }
 
     void SetNull()
