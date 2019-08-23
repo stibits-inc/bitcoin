@@ -8,6 +8,9 @@
 #include <util/system.h>
 #include <validation.h>
 
+#include <script/standard.h>
+#include <pubkey.h>
+
 #include <boost/thread.hpp>
 
 constexpr char DB_BEST_BLOCK = 'B';
@@ -222,6 +225,7 @@ bool AddressIndex::DB::WriteUnspentIndexs(const std::vector<std::pair<CAddressUn
             batch.Write(std::make_pair(DB_ADDRESSUNSPENTINDEX, it->first), it->second);
         }
     }
+    
     return WriteBatch(batch);
 }
 
@@ -238,15 +242,18 @@ bool AddressIndex::DB::DeleteUnspentIndexs(const std::vector<CAddressUnspentKey>
 
 bool AddressIndex::Init()
 {
-	
+    return BaseIndex::Init();
 }
+
+typedef std::vector<unsigned char> valtype;
 
 bool AddressIndex::WriteBlock(const CBlock& block, const CBlockIndex* pindex) 
 {
     // Exclude genesis block transaction because outputs are not spendable.
     if (pindex->nHeight == 0) return true;
     
-    std::vector<std::pair<CAddressUnspentKey, CAddressUnspentValue>> vect;
+    std::vector<std::pair<CAddressUnspentKey, CAddressUnspentValue>> list_to_add;
+    std::vector<CAddressUnspentKey> list_to_remove;
 
     CDiskTxPos pos(pindex->GetBlockPos(), GetSizeOfCompactSize(block.vtx.size()));
     std::vector<std::pair<uint256, CDiskTxPos>> vPos;
@@ -256,50 +263,90 @@ bool AddressIndex::WriteBlock(const CBlock& block, const CBlockIndex* pindex)
         CAddressUnspentValue addrval;
         addrkey.txhash = tx -> GetHash();
         
-        // TODO for each unspent output in this transaction (*tx)
-        //        add an element in the index 'vect'
-        for(const auto o : tx->vout)
+        // add each spendable unspent output in this transaction (*tx)
+        //  to the index
+        int ndex = 0;
+        for(const CTxOut& o : tx->vout)
         {
-            addrkey.type;
-            addrkey.index;
-            addrkey.hashBytes;
+            if(o.scriptPubKey.IsUnspendable()) continue;
             
-            o.nValue;
-            o.scriptPubKey;
+            addrkey.index = ndex++;      // index of this utxo in the txout table
             
             addrval.satoshis = o.nValue;
             addrval.blockHeight = pindex->nHeight;
+            addrval.script = o.scriptPubKey;// = ??; TODO
             //pindex->
+            
+		    std::vector<std::vector<unsigned char>> vSolutions;
+		    
+		    txnouttype whichType = Solver(o.scriptPubKey, vSolutions);
+		    
+		    if (whichType == TX_PUBKEYHASH || whichType == TX_WITNESS_V0_KEYHASH)
+		    {
+		        addrkey.hashBytes = uint160(vSolutions[0]);
+		        addrkey.type	  = whichType;
+		    }
+		    else
+		    {
+		        continue;
+		    }
+		    
+         
+            list_to_add.push_back(std::make_pair(addrkey, addrval));
         }
-        
-        // and
+         
+        // then
         // for each input
         //   remove from the index, the old output consumed by this input
+       
+        ndex = 0;
         
-        vPos.emplace_back(tx->GetHash(), pos);
-        pos.nTxOffset += ::GetSerializeSize(*tx, CLIENT_VERSION);
+        for(const CTxIn& xin : tx->vin )
+        {
+            addrkey.txhash = xin.prevout.hash;
+            addrkey.index  = xin.prevout.n;
+            
+            
+            std::vector<std::vector<unsigned char>> vSolutions;
+		    
+		    txnouttype whichType = Solver(xin.scriptSig, vSolutions); // TODO check xin.scriptSig
+		    if (whichType == TX_PUBKEYHASH || whichType == TX_WITNESS_V0_KEYHASH)
+		    {
+		        addrkey.hashBytes = uint160(vSolutions[0]);
+		        addrkey.type	  = whichType;
+		        
+		    }
+		    else
+		    {
+		        continue;
+		    }
+		    
+            list_to_remove.push_back(addrkey);
+        }
     }
     
-    return m_db->WriteUnspentIndexs(vect);
-	
+    if(! m_db->WriteUnspentIndexs(list_to_add))
+        return false;
+    
+    return m_db->DeleteUnspentIndexs(list_to_remove);
+    
 }
 
-BaseIndex::DB& AddressIndex::GetDB() const 
-{
-	
-}
+BaseIndex::DB& AddressIndex::GetDB() const { return *m_db; }
+
 
 AddressIndex::AddressIndex(size_t n_cache_size, bool f_memory, bool f_wipe)
-{
-	
-}
+    : m_db(MakeUnique<AddressIndex::DB>(n_cache_size, f_memory, f_wipe))
+{}
 
-AddressIndex::~AddressIndex()
-{
-	
-}
+AddressIndex::~AddressIndex() {}
 
 bool AddressIndex::FindAddress(const uint160& addressHash) const
 {
+	
+	int addressType; // =  ?? TODO;
+	std::vector<std::pair<CAddressUnspentKey, CAddressUnspentValue> > unspentOutputs;
+	
+	return m_db->ReadUnspentIndex(addressHash, addressType, unspentOutputs);
 	
 }
