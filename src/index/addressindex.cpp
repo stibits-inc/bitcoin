@@ -8,13 +8,22 @@
 #include <util/system.h>
 #include <validation.h>
 
+#include <key_io.h>
+#include <rpc/blockchain.h>
+#include <rpc/server.h>
+#include <rpc/util.h>
+
 #include <script/standard.h>
 #include <pubkey.h>
 
 #include <boost/thread.hpp>
 
-constexpr char DB_BEST_BLOCK = 'B';
-constexpr char DB_ADDRESSINDEX = 'a';
+#include <util/strencodings.h>
+
+
+
+//constexpr char DB_BEST_BLOCK = 'B';
+//constexpr char DB_ADDRESSINDEX = 'a';
 constexpr char DB_ADDRESSUNSPENTINDEX = 'u';
 
 std::unique_ptr<AddressIndex> g_addressindex;
@@ -75,6 +84,15 @@ struct CAddressUnspentKey {
         txhash = txid;
         index = indexValue;
     }
+    
+    std::string ToString()
+    {
+        
+        std::stringstream ss;
+        Serialize(ss);
+        //std::string r = ss;
+        return HexStr(ss.str());
+    }
 
     CAddressUnspentKey() {
         SetNull();
@@ -127,10 +145,10 @@ struct CAddressUnspentValue {
 struct CAddressIndexIteratorKey {
     unsigned int type;
     uint160 hashBytes;
-
+/*
     size_t GetSerializeSize() const {
         return 21;
-    }
+    }*/
     template<typename Stream>
     void Serialize(Stream& s) const {
         ser_writedata8(s, type);
@@ -145,6 +163,15 @@ struct CAddressIndexIteratorKey {
     CAddressIndexIteratorKey(unsigned int addressType, uint160 addressHash) {
         type = addressType;
         hashBytes = addressHash;
+    }
+    
+    std::string ToString()
+    {
+        
+        std::stringstream ss;
+        Serialize(ss);
+        //std::string r = ss;
+        return HexStr(ss.str());
     }
 
     CAddressIndexIteratorKey() {
@@ -194,6 +221,9 @@ bool AddressIndex::DB::ReadUnspentIndex(uint160 addressHash, int addressType,
 {
 	
     std::unique_ptr<CDBIterator> pcursor(NewIterator());
+    
+    LogPrintf("Reading key = %s\n", CAddressIndexIteratorKey(addressType, addressHash).ToString().c_str() );
+
 
     pcursor->Seek(std::make_pair(DB_ADDRESSUNSPENTINDEX, CAddressIndexIteratorKey(addressType, addressHash)));
 
@@ -281,7 +311,7 @@ bool AddressIndex::WriteBlock(const CBlock& block, const CBlockIndex* pindex)
 		    
 		    txnouttype whichType = Solver(o.scriptPubKey, vSolutions);
 		    
-		    if (whichType == TX_PUBKEYHASH || whichType == TX_WITNESS_V0_KEYHASH)
+		    if (whichType == TX_PUBKEYHASH || whichType == TX_SCRIPTHASH || whichType == TX_WITNESS_V0_KEYHASH)
 		    {
 		        addrkey.hashBytes = uint160(vSolutions[0]);
 		        addrkey.type	  = whichType;
@@ -291,6 +321,14 @@ bool AddressIndex::WriteBlock(const CBlock& block, const CBlockIndex* pindex)
 		        continue;
 		    }
 		    
+		    // LOG
+		    CTxDestination addressRet;
+		    ExtractDestination(o.scriptPubKey, addressRet);
+		    std::string d = EncodeDestination(addressRet);
+		    
+		    LogPrintf("type = %d, addr hex = %, addr = %s\n", addrkey.type, addrkey.hashBytes.GetHex().c_str(), d.c_str() );
+		    LogPrintf("key = %s\n", addrkey.ToString().c_str() );
+            // END LOG
          
             list_to_add.push_back(std::make_pair(addrkey, addrval));
         }
@@ -310,7 +348,7 @@ bool AddressIndex::WriteBlock(const CBlock& block, const CBlockIndex* pindex)
             std::vector<std::vector<unsigned char>> vSolutions;
 		    
 		    txnouttype whichType = Solver(xin.scriptSig, vSolutions); // TODO check xin.scriptSig
-		    if (whichType == TX_PUBKEYHASH || whichType == TX_WITNESS_V0_KEYHASH)
+		    if (whichType == TX_PUBKEYHASH || whichType == TX_SCRIPTHASH || whichType == TX_WITNESS_V0_KEYHASH)
 		    {
 		        addrkey.hashBytes = uint160(vSolutions[0]);
 		        addrkey.type	  = whichType;
@@ -341,12 +379,225 @@ AddressIndex::AddressIndex(size_t n_cache_size, bool f_memory, bool f_wipe)
 
 AddressIndex::~AddressIndex() {}
 
-bool AddressIndex::FindAddress(const uint160& addressHash) const
+bool AddressIndex::GetAddressUnspent(uint160 addressHash, int type, std::vector<std::pair<CAddressUnspentKey, CAddressUnspentValue> > &unspentOutputs )
 {
-	
-	int addressType; // =  ?? TODO;
-	std::vector<std::pair<CAddressUnspentKey, CAddressUnspentValue> > unspentOutputs;
-	
-	return m_db->ReadUnspentIndex(addressHash, addressType, unspentOutputs);
-	
+
+    if (!m_db->ReadUnspentIndex(addressHash, type, unspentOutputs))
+        return error("unable to get txids for address");
+
+    return true;
 }
+
+
+// RPC interface
+
+
+bool GetAddressUnspent(uint160 addressHash, int type,
+                       std::vector<std::pair<CAddressUnspentKey, CAddressUnspentValue> > &unspentOutputs)
+{
+    if (!g_addressindex)
+        return error("address index not enabled");
+    
+    // LOG
+ /*   CTxDestination addressRet;
+    ExtractDestination(o.scriptPubKey, addressRet);
+    std::string d = EncodeDestination(addressRet);
+ */
+ std::string d;
+    LogPrintf("type = %d, addr hex = %, addr = %s\n", type, addressHash.GetHex().c_str(), d.c_str() );
+    // END LOG
+                
+    
+    if (!g_addressindex->GetAddressUnspent(addressHash, type, unspentOutputs))
+        return error("unable to get txids for address");
+    
+    return true;
+}
+
+bool GetIndexKey(std::string addr_str, uint160& hashBytes, int& type)
+{
+    CTxDestination dest = DecodeDestination(addr_str);
+    
+    //typedef boost::variant<CNoDestination, CKeyID, CScriptID, WitnessV0ScriptHash, WitnessV0KeyHash, WitnessUnknown> CTxDestination;
+
+    switch(dest.which())
+    {
+        case 1: // CKeyID
+        {
+            CKeyID k = boost::get<CKeyID> (dest);
+            memcpy(&hashBytes, k.begin(), 20);
+            type = TX_PUBKEYHASH;
+            break;
+        }
+        
+        case 2: // CScriptID
+        {
+            CKeyID k = boost::get<CKeyID> (dest);
+            memcpy(&hashBytes, k.begin(), 20);
+            type = TX_SCRIPTHASH;
+            break;
+        }
+        
+        case 4:  // WitnessV0KeyHash
+        {
+            WitnessV0KeyHash w = boost::get<WitnessV0KeyHash>(dest);
+            memcpy(&hashBytes, w.begin(), 20);
+            type = TX_WITNESS_V0_KEYHASH;
+           break;
+        }
+        
+        default :
+            return false;
+    }
+    
+    return true;
+}
+
+
+bool getAddressFromIndex(const int &type, const uint160 &hash, std::string &address)
+{
+	// (whichType == TX_PUBKEYHASH || whichType == TX_SCRIPTHASH || whichType == TX_WITNESS_V0_KEYHASH)
+ 
+    if (type == TX_SCRIPTHASH) {
+        address = (CScriptID(hash)).ToString();
+    } else if (type == TX_PUBKEYHASH) {
+        address = (CKeyID(hash)).ToString();
+    } else if (type == TX_WITNESS_V0_KEYHASH) {
+        address = (WitnessV0KeyHash(hash)).ToString();
+    } else {
+        return false;
+    }
+    return true;
+}
+
+bool getAddressesFromParams(const UniValue& params, std::vector<std::pair<uint160, int> > &addresses)
+{
+    if (params[0].isStr()) {
+        uint160 hashBytes;
+        int type = 0;
+        if (!GetIndexKey(params[0].get_str(), hashBytes, type)) {
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY,  params[0].get_str() + "Invalid address 1");
+        }
+        addresses.push_back(std::make_pair(hashBytes, type));
+    } else if (params[0].isObject()) {
+
+        UniValue addressValues = find_value(params[0].get_obj(), "addresses");
+        if (!addressValues.isArray()) {
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Addresses is expected to be an array");
+        }
+
+        std::vector<UniValue> values = addressValues.getValues();
+
+        for (std::vector<UniValue>::iterator it = values.begin(); it != values.end(); ++it) {
+
+            uint160 hashBytes;
+            int type = 0;
+            if (!GetIndexKey(it->get_str(), hashBytes, type)) {
+                throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid address 2");
+            }
+            addresses.push_back(std::make_pair(hashBytes, type));
+        }
+    } else {
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid address 3");
+    }
+
+    return true;
+}
+
+bool heightSort(std::pair<CAddressUnspentKey, CAddressUnspentValue> a,
+                std::pair<CAddressUnspentKey, CAddressUnspentValue> b) {
+    return a.second.blockHeight < b.second.blockHeight;
+}
+
+
+UniValue getaddressutxos(const JSONRPCRequest& request)
+{
+    if (request.fHelp || request.params.size() != 1)
+        throw std::runtime_error(
+            "getaddressutxos\n"
+            "\nReturns all unspent outputs for an address (requires addressindex to be enabled).\n"
+            "\nArguments:\n"
+            "{\n"
+            "  \"addresses\"\n"
+            "    [\n"
+            "      \"address\"  (string) The base58check encoded address\n"
+            "      ,...\n"
+            "    ],\n"
+            "  \"chainInfo\",  (boolean, optional, default false) Include chain info with results\n"
+            "}\n"
+            "\nResult\n"
+            "[\n"
+            "  {\n"
+            "    \"address\"  (string) The address base58check encoded\n"
+            "    \"txid\"  (string) The output txid\n"
+            "    \"height\"  (number) The block height\n"
+            "    \"outputIndex\"  (number) The output index\n"
+            "    \"script\"  (strin) The script hex encoded\n"
+            "    \"satoshis\"  (number) The number of satoshis of the output\n"
+            "  }\n"
+            "]\n"
+            "\nExamples:\n"
+            + HelpExampleCli("getaddressutxos", "'{\"addresses\": [\"12c6DSiU4Rq3P4ZxziKxzrL5LmMBrzjrJX\"]}'")
+            + HelpExampleRpc("getaddressutxos", "{\"addresses\": [\"12c6DSiU4Rq3P4ZxziKxzrL5LmMBrzjrJX\"]}")
+            );
+
+    bool includeChainInfo = false;
+    if (request.params[0].isObject()) {
+        UniValue chainInfo = find_value(request.params[0].get_obj(), "chainInfo");
+        if (chainInfo.isBool()) {
+            includeChainInfo = chainInfo.get_bool();
+        }
+    }
+    
+    LogPrintf("A....................\n");
+
+    std::vector<std::pair<uint160, int> > addresses;
+
+    if (!getAddressesFromParams(request.params, addresses)) {
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid address 4");
+    }
+   LogPrintf("B....................\n");
+
+    std::vector<std::pair<CAddressUnspentKey, CAddressUnspentValue> > unspentOutputs;
+
+    for (std::vector<std::pair<uint160, int> >::iterator it = addresses.begin(); it != addresses.end(); it++) {
+
+            if (!GetAddressUnspent((*it).first, (*it).second, unspentOutputs)) {
+                throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "No information available for address");
+            }
+    }
+   LogPrintf("C.........size = %d .......\n", unspentOutputs.size());
+
+    std::sort(unspentOutputs.begin(), unspentOutputs.end(), heightSort);
+
+    UniValue utxos(UniValue::VARR);
+
+    for (auto it=unspentOutputs.begin(); it!=unspentOutputs.end(); it++) {
+        UniValue output(UniValue::VOBJ);
+        std::string address;
+        if (!getAddressFromIndex(it->first.type, it->first.hashBytes, address)) {
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Unknown address type");
+        }
+
+        output.pushKV("address", address);
+        output.pushKV("txid", it->first.txhash.GetHex());
+        output.pushKV("outputIndex", (int)it->first.index);
+        output.pushKV("script", HexStr(it->second.script.begin(), it->second.script.end()));
+        output.pushKV("satoshis", it->second.satoshis);
+        output.pushKV("height", it->second.blockHeight);
+        utxos.push_back(output);
+    }
+
+    if (includeChainInfo) {
+        UniValue result(UniValue::VOBJ);
+        result.pushKV("utxos", utxos);
+
+        LOCK(cs_main);
+        result.pushKV("hash", chainActive.Tip()->GetBlockHash().GetHex());
+        result.pushKV("height", (int)chainActive.Height());
+        return result;
+    } else {
+        return utxos;
+    }
+}
+

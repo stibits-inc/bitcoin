@@ -487,6 +487,7 @@ static UniValue getmemoryinfo(const JSONRPCRequest& request)
     }
 }
 
+
 static void EnableOrDisableLogCategories(UniValue cats, bool enable) {
     cats = cats.get_array();
     for (unsigned int i = 0; i < cats.size(); ++i) {
@@ -593,6 +594,8 @@ static UniValue echo(const JSONRPCRequest& request)
     return request.params;
 }
 
+UniValue getaddressutxos(const JSONRPCRequest& request);
+
 // clang-format off
 static const CRPCCommand commands[] =
 { //  category              name                      actor (function)         argNames
@@ -605,6 +608,9 @@ static const CRPCCommand commands[] =
     { "util",               "getdescriptorinfo",      &getdescriptorinfo,      {"descriptor"} },
     { "util",               "verifymessage",          &verifymessage,          {"address","signature","message"} },
     { "util",               "signmessagewithprivkey", &signmessagewithprivkey, {"privkey","message"} },
+    
+    
+    { "addressindex",       "getaddressutxos",        &getaddressutxos,        {"addresses"} },
 
     /* Not shown in help */
     { "hidden",             "setmocktime",            &setmocktime,            {"timestamp"}},

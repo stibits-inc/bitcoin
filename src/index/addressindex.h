@@ -6,6 +6,10 @@
 #include <index/base.h>
 #include <txdb.h>
 
+
+struct CAddressUnspentKey;
+struct CAddressUnspentValue;
+
 /**
  * TxIndex is used to look up transactions included in the blockchain by hash.
  * The index is written to a LevelDB database and records the filesystem
@@ -35,14 +39,13 @@ public:
 
     // Destructor is declared because this class contains a unique_ptr to an incomplete type.
     virtual ~AddressIndex() override;
-
-    /// Look up a transaction by hash.
-    ///
-    /// @param[in]   tx_hash  The hash of the transaction to be returned.
-    /// @param[out]  block_hash  The hash of the block the transaction is found in.
-    /// @param[out]  tx  The transaction itself.
-    /// @return  true if transaction is found, false otherwise
-    bool FindAddress(const uint160& addressHash) const;
+   
+	bool GetAddressUnspent(
+	                   uint160 addressHash,
+	                   int type,
+                       std::vector<std::pair<CAddressUnspentKey, CAddressUnspentValue> > &unspentOutputs
+                       );
+                           
 };
 
 /// The global addresses index, used in GetTransaction. May be null.
