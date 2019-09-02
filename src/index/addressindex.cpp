@@ -219,11 +219,7 @@ AddressIndex::DB::DB(size_t n_cache_size, bool f_memory, bool f_wipe) :
 bool AddressIndex::DB::ReadUnspentIndex(uint160 addressHash, int addressType,
                                            std::vector<std::pair<CAddressUnspentKey, CAddressUnspentValue> > &unspentOutputs)
 {
-	
     std::unique_ptr<CDBIterator> pcursor(NewIterator());
-    
-    LogPrintf("Reading key = %s\n", CAddressIndexIteratorKey(addressType, addressHash).ToString().c_str() );
-
 
     pcursor->Seek(std::make_pair(DB_ADDRESSUNSPENTINDEX, CAddressIndexIteratorKey(addressType, addressHash)));
 
@@ -320,15 +316,6 @@ bool AddressIndex::WriteBlock(const CBlock& block, const CBlockIndex* pindex)
 		    {
 		        continue;
 		    }
-		    
-		    // LOG
-		    CTxDestination addressRet;
-		    ExtractDestination(o.scriptPubKey, addressRet);
-		    std::string d = EncodeDestination(addressRet);
-		    
-		    LogPrintf("type = %d, addr hex = %, addr = %s\n", addrkey.type, addrkey.hashBytes.GetHex().c_str(), d.c_str() );
-		    LogPrintf("key = %s\n", addrkey.ToString().c_str() );
-            // END LOG
          
             list_to_add.push_back(std::make_pair(addrkey, addrval));
         }
@@ -397,16 +384,6 @@ bool GetAddressUnspent(uint160 addressHash, int type,
 {
     if (!g_addressindex)
         return error("address index not enabled");
-    
-    // LOG
- /*   CTxDestination addressRet;
-    ExtractDestination(o.scriptPubKey, addressRet);
-    std::string d = EncodeDestination(addressRet);
- */
- std::string d;
-    LogPrintf("type = %d, addr hex = %, addr = %s\n", type, addressHash.GetHex().c_str(), d.c_str() );
-    // END LOG
-                
     
     if (!g_addressindex->GetAddressUnspent(addressHash, type, unspentOutputs))
         return error("unable to get txids for address");
@@ -549,14 +526,11 @@ UniValue getaddressutxos(const JSONRPCRequest& request)
         }
     }
     
-    LogPrintf("A....................\n");
-
     std::vector<std::pair<uint160, int> > addresses;
 
     if (!getAddressesFromParams(request.params, addresses)) {
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid address 4");
     }
-   LogPrintf("B....................\n");
 
     std::vector<std::pair<CAddressUnspentKey, CAddressUnspentValue> > unspentOutputs;
 
@@ -566,7 +540,6 @@ UniValue getaddressutxos(const JSONRPCRequest& request)
                 throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "No information available for address");
             }
     }
-   LogPrintf("C.........size = %d .......\n", unspentOutputs.size());
 
     std::sort(unspentOutputs.begin(), unspentOutputs.end(), heightSort);
 
