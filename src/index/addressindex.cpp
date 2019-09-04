@@ -3,6 +3,7 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include <index/addressindex.h>
+#include <index/txindex.h>
 #include <shutdown.h>
 #include <ui_interface.h>
 #include <util/system.h>
@@ -90,7 +91,6 @@ struct CAddressUnspentKey {
         
         std::stringstream ss;
         Serialize(ss);
-        //std::string r = ss;
         return HexStr(ss.str());
     }
 
@@ -140,7 +140,6 @@ struct CAddressUnspentValue {
         return (satoshis == -1);
     }
 };
-
 
 struct CAddressIndexIteratorKey {
     unsigned int type;
@@ -331,10 +330,20 @@ bool AddressIndex::WriteBlock(const CBlock& block, const CBlockIndex* pindex)
             addrkey.txhash = xin.prevout.hash;
             addrkey.index  = xin.prevout.n;
             
+            //  get the txout by txhash and index (using txindex)
+            //  then use it for address hshbytes and type extraction
+            
+            uint256 block_hash;
+            CTransactionRef tx_in;
+            if(!g_txindex->FindTx(addrkey.txhash, block_hash, tx_in))
+            {
+                LogPrintf("ERROR Getting txin's txout\n");
+                continue;
+            }
             
             std::vector<std::vector<unsigned char>> vSolutions;
 		    
-		    txnouttype whichType = Solver(xin.scriptSig, vSolutions); // TODO check xin.scriptSig
+		    txnouttype whichType = Solver(tx_in->vout[addrkey.index].scriptPubKey, vSolutions);
 		    if (whichType == TX_PUBKEYHASH || whichType == TX_SCRIPTHASH || whichType == TX_WITNESS_V0_KEYHASH)
 		    {
 		        addrkey.hashBytes = uint160(vSolutions[0]);
@@ -346,6 +355,7 @@ bool AddressIndex::WriteBlock(const CBlock& block, const CBlockIndex* pindex)
 		        continue;
 		    }
 		    
+		    LogPrintf("To Remove : %d %s\n", addrkey.type, addrkey.hashBytes.GetHex().c_str());
             list_to_remove.push_back(addrkey);
         }
     }
@@ -354,7 +364,6 @@ bool AddressIndex::WriteBlock(const CBlock& block, const CBlockIndex* pindex)
         return false;
     
     return m_db->DeleteUnspentIndexs(list_to_remove);
-    
 }
 
 BaseIndex::DB& AddressIndex::GetDB() const { return *m_db; }
@@ -377,7 +386,6 @@ bool AddressIndex::GetAddressUnspent(uint160 addressHash, int type, std::vector<
 
 
 // RPC interface
-
 
 bool GetAddressUnspent(uint160 addressHash, int type,
                        std::vector<std::pair<CAddressUnspentKey, CAddressUnspentValue> > &unspentOutputs)
