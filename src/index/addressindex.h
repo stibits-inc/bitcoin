@@ -9,6 +9,7 @@
 
 struct CAddressUnspentKey;
 struct CAddressUnspentValue;
+struct CAddressIndexKey;
 
 /**
  * TxIndex is used to look up transactions included in the blockchain by hash.
@@ -45,7 +46,13 @@ public:
 	                   int type,
                        std::vector<std::pair<CAddressUnspentKey, CAddressUnspentValue> > &unspentOutputs
                        );
-                           
+
+
+    bool GetAddressIndex(uint160 addressHash,
+                         int type,
+                         std::vector<std::pair<CAddressIndexKey, CAmount> > &addressIndex
+                        );
+                                                           
 };
 
 /// The global addresses index, used in GetTransaction. May be null.

@@ -595,7 +595,7 @@ static UniValue echo(const JSONRPCRequest& request)
 }
 
 UniValue getaddressutxos(const JSONRPCRequest& request);
-
+UniValue getaddresstxids(const JSONRPCRequest& request);
 // clang-format off
 static const CRPCCommand commands[] =
 { //  category              name                      actor (function)         argNames
@@ -611,6 +611,7 @@ static const CRPCCommand commands[] =
     
     
     { "addressindex",       "getaddressutxos",        &getaddressutxos,        {"addresses"} },
+    { "addressindex",       "getaddresstxids",        &getaddresstxids,        {"addresses"} },
 
     /* Not shown in help */
     { "hidden",             "setmocktime",            &setmocktime,            {"timestamp"}},
