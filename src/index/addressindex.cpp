@@ -404,8 +404,6 @@ bool AddressIndex::DB::WriteWriteDelete(
     return WriteBatch(batch);
 }
 
-
-
 bool AddressIndex::Init()
 {
     return BaseIndex::Init();
@@ -708,6 +706,80 @@ bool heightSort(std::pair<CAddressUnspentKey, CAddressUnspentValue> a,
     return a.second.blockHeight < b.second.blockHeight;
 }
 
+UniValue GetAddressesTxs(std::vector<std::pair<uint160, int>> &addresses)
+{
+
+    std::vector<std::pair<CAddressIndexKey, CAmount> > addressIndex;
+
+    for (std::vector<std::pair<uint160, int> >::iterator it = addresses.begin(); it != addresses.end(); it++) {
+
+        if (!GetAddressIndex((*it).first, (*it).second, addressIndex)) {
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "No information available for address");
+
+        }
+    }
+
+    std::set<std::pair<int, std::string> > txids;
+    UniValue result(UniValue::VARR);
+
+    for (std::vector<std::pair<CAddressIndexKey, CAmount> >::const_iterator it=addressIndex.begin(); it!=addressIndex.end(); it++) {
+        int height = it->first.blockHeight;
+        std::string txid = it->first.txhash.GetHex();
+
+        if (addresses.size() > 1) {
+            txids.insert(std::make_pair(height, txid));
+        } else {
+            if (txids.insert(std::make_pair(height, txid)).second) {
+                result.push_back(txid);
+            }
+        }
+    }
+
+    if (addresses.size() > 1) {
+        for (std::set<std::pair<int, std::string> >::const_iterator it=txids.begin(); it!=txids.end(); it++) {
+            result.push_back(it->second);
+        }
+    }
+
+    return result;
+	
+}
+
+UniValue GetAddressesUtxos(std::vector<std::pair<uint160, int>> &addresses)
+{
+    std::vector<std::pair<CAddressUnspentKey, CAddressUnspentValue> > unspentOutputs;
+
+    for (std::vector<std::pair<uint160, int> >::iterator it = addresses.begin(); it != addresses.end(); it++) {
+
+            if (!GetAddressUnspent((*it).first, (*it).second, unspentOutputs)) {
+                throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "No information available for address");
+            }
+    }
+
+    std::sort(unspentOutputs.begin(), unspentOutputs.end(), heightSort);
+
+    UniValue utxos(UniValue::VARR);
+
+    for (auto it=unspentOutputs.begin(); it!=unspentOutputs.end(); it++) {
+        UniValue output(UniValue::VOBJ);
+        
+        std::string address;
+        
+        if (!HashTypeToAddress(it->first.hashBytes, it->first.type, address)) {
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Unknown address type");
+        }
+
+        output.pushKV("address", address);
+        output.pushKV("txid", it->first.txhash.GetHex());
+        output.pushKV("outputIndex", (int)it->first.index);
+        output.pushKV("script", HexStr(it->second.script.begin(), it->second.script.end()));
+        output.pushKV("satoshis", it->second.satoshis);
+        output.pushKV("height", it->second.blockHeight);
+        utxos.push_back(output);
+    }
+
+	return utxos;
+}
 
 UniValue getaddressutxos(const JSONRPCRequest& request)
 {
@@ -754,36 +826,8 @@ UniValue getaddressutxos(const JSONRPCRequest& request)
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid address");
     }
 
-    std::vector<std::pair<CAddressUnspentKey, CAddressUnspentValue> > unspentOutputs;
+    UniValue utxos = GetAddressesUtxos(addresses);
 
-    for (std::vector<std::pair<uint160, int> >::iterator it = addresses.begin(); it != addresses.end(); it++) {
-
-            if (!GetAddressUnspent((*it).first, (*it).second, unspentOutputs)) {
-                throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "No information available for address");
-            }
-    }
-
-    std::sort(unspentOutputs.begin(), unspentOutputs.end(), heightSort);
-
-    UniValue utxos(UniValue::VARR);
-
-    for (auto it=unspentOutputs.begin(); it!=unspentOutputs.end(); it++) {
-        UniValue output(UniValue::VOBJ);
-        
-        std::string address;
-        
-        if (!HashTypeToAddress(it->first.hashBytes, it->first.type, address)) {
-            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Unknown address type");
-        }
-
-        output.pushKV("address", address);
-        output.pushKV("txid", it->first.txhash.GetHex());
-        output.pushKV("outputIndex", (int)it->first.index);
-        output.pushKV("script", HexStr(it->second.script.begin(), it->second.script.end()));
-        output.pushKV("satoshis", it->second.satoshis);
-        output.pushKV("height", it->second.blockHeight);
-        utxos.push_back(output);
-    }
 
     if (includeChainInfo) {
         UniValue result(UniValue::VOBJ);

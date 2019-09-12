@@ -5,7 +5,7 @@
 #include <chain.h>
 #include <index/base.h>
 #include <txdb.h>
-
+#include <rpc/util.h>
 
 struct CAddressUnspentKey;
 struct CAddressUnspentValue;
@@ -58,6 +58,8 @@ public:
 /// The global addresses index, used in GetTransaction. May be null.
 extern std::unique_ptr<AddressIndex> g_addressindex;
 
-
+bool AddressToHashType(std::string addr_str, uint160& hashBytes, int& type);
+UniValue GetAddressesUtxos(std::vector<std::pair<uint160, int>> &addresses);
+UniValue GetAddressesTxs(std::vector<std::pair<uint160, int>> &addresses);
 
 #endif
