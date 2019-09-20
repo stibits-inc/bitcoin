@@ -31,7 +31,7 @@ struct HD_XPub
 			segwit ?
 				DeriveWitness( from, count, internal)
 			:
-				Derive( from, count, internal);
+				Derive       ( from, count, internal);
 	}
 	
 private:
@@ -121,6 +121,15 @@ static UniValue& operator <<(UniValue& arr, const UniValue& a) {
 	return arr;
 }
 
+static std::vector<std::string>& operator <<(std::vector<std::string>& arr, const UniValue& a) {
+	for(size_t i = 0; i < a.size(); i++)
+	{
+		arr.push_back(a[i].write());
+	}
+	
+	return arr;
+}
+
 UniValue Recover_(HD_XPub& hd, bool internal, bool segwit)
 {
 	/*
@@ -178,6 +187,50 @@ UniValue Recover_(HD_XPub& hd, bool internal, bool segwit)
 	 } while(not_found < 100);
 	 
 	 return ret;
+}
+
+void GenerateFromXPUB(std::string xpubkey, int from, int count, UniValue& out)
+{
+    HD_XPub xpub(xpubkey);
+    
+    std::vector<std::string> v = xpub.Derive(from, count, false, true);
+	
+    for(auto addr : v)
+    {
+        out.push_back(addr);
+    }
+}
+
+void GenerateFromXPUB(std::string xpubkey, int from, int count, std::vector<std::string>& out)
+{
+    HD_XPub xpub(xpubkey);
+    
+    std::vector<std::string> v = xpub.Derive(from, count, false, true);
+	
+    for(auto addr : v)
+    {
+        out.push_back(addr);
+    }
+}
+
+void RecoverFromXPUB(std::string xpubkey, UniValue& out)
+{
+    HD_XPub xpub(xpubkey);
+        
+    out   << Recover_(xpub, false, true)
+          << Recover_(xpub, false, false)
+          << Recover_(xpub, true, false)
+          << Recover_(xpub, true, true);
+}
+
+void RecoverFromXPUB(std::string xpubkey, std::vector<std::string>& out)
+{
+    HD_XPub xpub(xpubkey);
+        
+    out   << Recover_(xpub, false, true)
+          << Recover_(xpub, false, false)
+          << Recover_(xpub, true, false)
+          << Recover_(xpub, true, true);
 }
 
 // RPC
@@ -288,15 +341,10 @@ UniValue stibgetxpubutxos(const JSONRPCRequest& request)
         }
     }
     
-    HD_XPub xpub(xpubkey);
     UniValue utxos(UniValue::VARR);
-    
-    utxos << Recover_(xpub, false, true)
-          << Recover_(xpub, false, false)
-          << Recover_(xpub, true, false)
-          << Recover_(xpub, true, true);
-	
-	return utxos;
+	RecoverFromXPUB(xpubkey, utxos);
+    return utxos;
+
 }
 
 
