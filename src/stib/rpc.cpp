@@ -114,7 +114,10 @@ std::vector<std::string> HD_XPub::DeriveWitness(uint32_t from, uint32_t count, b
 
 static UniValue& operator <<(UniValue& arr, const UniValue& a) {
 	for(size_t i = 0; i < a.size(); i++)
+	{
 		arr.push_back(a[i]);
+	}
+	
 	return arr;
 }
 
@@ -295,4 +298,5 @@ UniValue stibgetxpubutxos(const JSONRPCRequest& request)
 	
 	return utxos;
 }
+
 
