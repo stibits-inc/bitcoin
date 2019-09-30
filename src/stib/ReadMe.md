@@ -5,8 +5,8 @@
 ##description
  this command hold all custom messages developped for stibits.
  for now : 
-	- hd addresses generation from a public key
-	- get utxos from a public key
+	- hd addresses generation from an extended public key
+	- get utxos from an extended public key
  this list is open and it can grow.
 
 
@@ -26,6 +26,8 @@ _____________________________________________________________
 	5			:	count		:	4		: uint define the number of address to generate
 	9			:	xpub		:	111		: the account xpubkey
 -------------------------------------------------------------
+ Total								120
+-------------------------------------------------------------
 
 
 std::vector<unsigned char> Gpayload(uint32_t from, uint32_t size, std::string xpub) {
@@ -44,6 +46,8 @@ _____________________________________________________________
 	0			:	function	:	1		: equal to 'R'(0x52)
 	1			:	xpub		:	111		: the account xpubkey
 -------------------------------------------------------------
+ Total								112
+-------------------------------------------------------------
 
 std::vector<unsigned char> Gpayload(uint32_t from, uint32_t size, std::string xpub) {
 	std::vector<unsigned char> v(112);
@@ -60,7 +64,7 @@ std::vector<unsigned char> Gpayload(uint32_t from, uint32_t size, std::string xp
            it is the size of the rest of the message, that is a json object. and that is start at index 1.
 	 - if it is equal to 0xfd
 			the size of the json message is defined in the next tow byte as unsigned short
-			in this case the json message start at index 4.
+			in this case the json message start at the index 3.
   - the json object starts with '{'
 
 # response example for a 'G' function:
