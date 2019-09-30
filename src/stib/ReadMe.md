@@ -49,7 +49,7 @@ _____________________________________________________________
  Total								112
 -------------------------------------------------------------
 
-std::vector<unsigned char> Gpayload(uint32_t from, uint32_t size, std::string xpub) {
+std::vector<unsigned char> Gpayload(std::string xpub) {
 	std::vector<unsigned char> v(112);
 	v[0] = 'R';
 	memcpy((unsigned char*)(v.data() + 1), xpub.data(), 111);
