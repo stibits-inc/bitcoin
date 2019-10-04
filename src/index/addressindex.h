@@ -61,5 +61,6 @@ extern std::unique_ptr<AddressIndex> g_addressindex;
 bool AddressToHashType(std::string addr_str, uint160& hashBytes, int& type);
 UniValue GetAddressesUtxos(std::vector<std::pair<uint160, int>> &addresses);
 UniValue GetAddressesTxs(std::vector<std::pair<uint160, int>> &addresses);
+int GetLastUsedIndex(std::vector<std::pair<uint160, int>> &addresses);
 
 #endif

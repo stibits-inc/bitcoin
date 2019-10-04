@@ -599,6 +599,7 @@ UniValue getaddresstxids(const JSONRPCRequest& request);
 
 UniValue stibgenxpubaddresses(const JSONRPCRequest& request);
 UniValue stibgetxpubutxos(const JSONRPCRequest& request);
+UniValue stibgetlastusedhdindex(const JSONRPCRequest& request);
 
 // clang-format off
 static const CRPCCommand commands[] =
@@ -619,6 +620,7 @@ static const CRPCCommand commands[] =
     
     { "stibits",            "stibgenxpubaddresses",    &stibgenxpubaddresses,  {"xpubkey", "from", "count", "for_change", "segwit"} },
     { "stibits",            "stibgetxpubutxos",        &stibgetxpubutxos,      {"xpubkey"} },
+    { "stibits",            "stibgetlastusedhdindex",  &stibgetlastusedhdindex,{"xpubkey"} },
 
     /* Not shown in help */
     { "hidden",             "setmocktime",            &setmocktime,            {"timestamp"}},

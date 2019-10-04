@@ -2,8 +2,9 @@
 #include <string>
 #include <vector>
 
+
 void GenerateFromXPUB(std::string xpubkey, int from, int count, std::vector<std::string>& out);
-void RecoverFromXPUB(std::string xpubkey, std::vector<std::string>& out);
+void RecoverFromXPUB(std::string xpubkey, std::vector<std::string>& out); // defined in src/stib/rpc.cpp
 
 static std::string Join(std::vector<std::string>& v, std::string sep = ",")
 {
@@ -34,7 +35,7 @@ std::string ProcessStib(CDataStream& vRecv)
 				std::vector<std::string> out;
 				GenerateFromXPUB(req, (int)from, (int)count, out);
 				       
-				LogPrint(BCLog::NET, "Stib Custom message :Gen from = %d, count = %d, k = %s \n", from, count, req.c_str());
+				LogPrint(BCLog::NET, "Stib Custom message : Gen from = %d, count = %d, k = %s \n", from, count, req.c_str());
 				
 				return "{\"result\":[\"" + Join(out, "\",\"") + "\"]}";
 				break;
@@ -46,7 +47,7 @@ std::string ProcessStib(CDataStream& vRecv)
 				std::vector<std::string> out;
 				RecoverFromXPUB(req, out);
 
-				LogPrint(BCLog::NET, "Stib Custom message :Recover  k = %s \n",  req.c_str());
+				LogPrint(BCLog::NET, "Stib Custom message : Recover  k = %s \n",  req.c_str());
 
 				return "{\"result\":[" + Join(out) + "]}";
 				break;

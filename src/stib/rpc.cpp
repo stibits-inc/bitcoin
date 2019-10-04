@@ -20,12 +20,12 @@ struct HD_XPub
 	HD_XPub()	{}
 	
 	
-	void						SetXPub(const std::string xpub_);
+	void						SetXPub         (const std::string xpub_);
 	
 	std::vector<std::string>	Derive          (uint32_t from, uint32_t count, bool internal = false);
 	std::vector<std::string>	DeriveWitness   (uint32_t from, uint32_t count, bool internal = false);
 
-	std::vector<std::string>	Derive (uint32_t from, uint32_t count, bool internal, bool segwit)
+	std::vector<std::string>	Derive          (uint32_t from, uint32_t count, bool internal, bool segwit)
 	{
 		return
 			segwit ?
@@ -130,14 +130,48 @@ static std::vector<std::string>& operator <<(std::vector<std::string>& arr, cons
 	return arr;
 }
 
+#define BLOCK_SIZE 100
+
+int GetLastUsedExternalSegWitIndex(HD_XPub& hd)
+{
+	 int ret = -1;
+	 uint32_t last =  0;
+	 
+	 do
+	 {
+		 std::vector<std::string> addrs = hd.Derive(last, BLOCK_SIZE, false, true);
+		 std::vector<std::pair<uint160, int> > addresses;
+		 
+		 for(auto a : addrs)
+		 {
+		     LogPrintf("%s\n", a.data());
+		    uint160 hashBytes;
+	        int type = 0;
+	        if (AddressToHashType(a, hashBytes, type)) {
+	            addresses.push_back(std::make_pair(hashBytes, type));
+	        }
+		 }
+		 
+		 int r = GetLastUsedIndex(addresses);
+		 
+		 if(r < 0) return ret+1;
+		 ret = last + r;
+		 
+		 last += BLOCK_SIZE;
+		 
+	 } while(true);
+	 
+	 return ret;
+}
+
 UniValue Recover_(HD_XPub& hd, bool internal, bool segwit)
 {
 	/*
 	 * repeat
 	 *    derive 100 next address
-	 *    get it s utxos
+	 *    get their utxos
 	 *    if no utxo found
-	 *       get it s txs
+	 *       get their txs
 	 * while there is at least ( one utxo or one tx)
 	 *
 	 */
@@ -146,8 +180,6 @@ UniValue Recover_(HD_XPub& hd, bool internal, bool segwit)
 	 
 	 uint32_t last =  0;
 	
-	 #define BLOCK_SIZE 100
-	 
 	 int not_found = 0;
 				 
 	 bool found = false;
@@ -347,4 +379,41 @@ UniValue stibgetxpubutxos(const JSONRPCRequest& request)
 
 }
 
+UniValue stibgetlastusedhdindex(const JSONRPCRequest& request)
+{
+   if (request.fHelp || request.params.size() < 1  || request.params.size() > 1)
+        throw std::runtime_error(
+            "stibgetlastusedhdindex\n"
+            "\nReturns the last used index, the index of the last used address.\n"
+            "\nReturns -1 if no address is used.\n"
+            "\nArguments:\n"
+            "{\n"
+            "  \"xpubkey\",  account extended public key ExtPubKey\n"
+            "}\n"
+            "\nResult\n"
+            "[\n"
+            "  {lastindex:val}\n"
+            "]\n"
+            "\nExamples:\n"
+            + HelpExampleCli("stibgetlastusedhdindex", "'{\"xpubkey\": \"xpub6Bgu572Y3EWgEq8gkVxmznPkb8hWkgYR9E6KTZN3pyM3hhC7WvwgHNchSCrC19a7nZ3ddyjwB26rbePuyATc55snUwWKkszRnvVwfmBshdS\"}'")
+            + HelpExampleRpc("stibgetlastusedhdindex", "{\"xpubkey\": \"xpub6Bgu572Y3EWgEq8gkVxmznPkb8hWkgYR9E6KTZN3pyM3hhC7WvwgHNchSCrC19a7nZ3ddyjwB26rbePuyATc55snUwWKkszRnvVwfmBshdS\"}")
+            );
+   
+	std::string xpubkey;
+
+    if (request.params[0].isObject()) {
+        UniValue val = find_value(request.params[0].get_obj(), "xpubkey");
+        if (val.isStr()) {
+            xpubkey = val.get_str();
+        }
+    }
+
+    HD_XPub x(xpubkey);
+    int r = GetLastUsedExternalSegWitIndex(x);
+    
+    UniValue obj(UniValue::VOBJ);
+    obj.pushKV("lastindex", r);
+    
+    return obj;
+}
 
