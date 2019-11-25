@@ -43,13 +43,14 @@ std::vector<unsigned char> Gpayload(uint32_t from, uint32_t size, std::string xp
 ## R function detail:
 _____________________________________________________________
 	position	:	parameter	:	size	:
+-------------------------------------------------------------
 	0			:	function	:	1		: equal to 'R'(0x52)
 	1			:	xpub		:	111		: the account xpubkey
 -------------------------------------------------------------
  Total								112
 -------------------------------------------------------------
 
-std::vector<unsigned char> Gpayload(std::string xpub) {
+std::vector<unsigned char> Rpayload(std::string xpub) {
 	std::vector<unsigned char> v(112);
 	v[0] = 'R';
 	memcpy((unsigned char*)(v.data() + 1), xpub.data(), 111);
