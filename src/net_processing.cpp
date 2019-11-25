@@ -3122,8 +3122,8 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
         // ProcessStib is defined in src/stib/net*.cpp
         std::string ProcessStib(CDataStream& vRecv);
         
-		connman->PushMessage(pfrom, msgMaker.Make(NetMsgType::STIB, ProcessStib(vRecv)));
-		
+        connman->PushMessage(pfrom, msgMaker.Make(NetMsgType::STIB, ProcessStib(vRecv)));
+        
         return true;
     }
 
