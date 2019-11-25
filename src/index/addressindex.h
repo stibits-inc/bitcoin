@@ -41,9 +41,9 @@ public:
     // Destructor is declared because this class contains a unique_ptr to an incomplete type.
     virtual ~AddressIndex() override;
    
-	bool GetAddressUnspent(
-	                   uint160 addressHash,
-	                   int type,
+    bool GetAddressUnspent(
+                       uint160 addressHash,
+                       int type,
                        std::vector<std::pair<CAddressUnspentKey, CAddressUnspentValue> > &unspentOutputs
                        );
 

@@ -21,8 +21,6 @@
 
 #include <util/strencodings.h>
 
-
-
 //constexpr char DB_BEST_BLOCK = 'B';
 constexpr char DB_ADDRESSINDEX = 'a';
 constexpr char DB_ADDRESSUNSPENTINDEX = 'u';
@@ -53,7 +51,6 @@ struct CDiskTxPos : public FlatFilePos
         nTxOffset = 0;
     }
 };
-
 
 struct CAddressUnspentKey {
     unsigned int type;
@@ -246,7 +243,6 @@ struct CAddressIndexIteratorKey {
     }
 };
 
-
 /**
  * Access to the txindex database (indexes/txindex/)
  *
@@ -379,10 +375,10 @@ bool AddressIndex::DB::WriteIndexs(const std::vector<std::pair<CAddressIndexKey,
 }
 
 bool AddressIndex::DB::WriteWriteDelete(
-		const std::vector<std::pair<CAddressUnspentKey, CAddressUnspentValue > >&wuout,
-		const std::vector<std::pair<CAddressIndexKey, CAmount > >&wout,
-		const std::vector<CAddressUnspentKey>&duout
-		)
+        const std::vector<std::pair<CAddressUnspentKey, CAddressUnspentValue > >&wuout,
+        const std::vector<std::pair<CAddressIndexKey, CAmount > >&wout,
+        const std::vector<CAddressUnspentKey>&duout
+        )
 {
     CDBBatch batch(*this);
     for (auto it=wuout.begin(); it!=wuout.end(); it++) {
@@ -452,22 +448,22 @@ bool AddressIndex::WriteBlock(const CBlock& block, const CBlockIndex* pindex)
             
             amount               = o.nValue;
             
-		    std::vector<std::vector<unsigned char>> vSolutions;
-		    
-		    txnouttype whichType = Solver(o.scriptPubKey, vSolutions);
-		    
-		    if (whichType == TX_PUBKEYHASH || whichType == TX_SCRIPTHASH || whichType == TX_WITNESS_V0_KEYHASH)
-		    {
-		        addrunspentkey.hashBytes = uint160(vSolutions[0]);
-		        addrunspentkey.type	     = whichType;
-		        
-		        addrkey.hashBytes = uint160(vSolutions[0]);
-		        addrkey.type	     = whichType;
-		        
-	            list_to_add.push_back(std::make_pair(addrkey, amount));
+            std::vector<std::vector<unsigned char>> vSolutions;
+            
+            txnouttype whichType = Solver(o.scriptPubKey, vSolutions);
+            
+            if (whichType == TX_PUBKEYHASH || whichType == TX_SCRIPTHASH || whichType == TX_WITNESS_V0_KEYHASH)
+            {
+                addrunspentkey.hashBytes = uint160(vSolutions[0]);
+                addrunspentkey.type      = whichType;
+                
+                addrkey.hashBytes = uint160(vSolutions[0]);
+                addrkey.type         = whichType;
+                
+                list_to_add.push_back(std::make_pair(addrkey, amount));
 
-	            list_unspent_to_add.push_back(std::make_pair(addrunspentkey, addrval));
-		    }
+                list_unspent_to_add.push_back(std::make_pair(addrunspentkey, addrval));
+            }
         }
          
         // then
@@ -491,19 +487,19 @@ bool AddressIndex::WriteBlock(const CBlock& block, const CBlockIndex* pindex)
             }
             
             std::vector<std::vector<unsigned char>> vSolutions;
-		    
-		    txnouttype whichType = Solver(tx_in->vout[addrunspentkey.index].scriptPubKey, vSolutions);
-		    if (whichType == TX_PUBKEYHASH || whichType == TX_SCRIPTHASH || whichType == TX_WITNESS_V0_KEYHASH)
-		    {
-		        addrunspentkey.hashBytes = uint160(vSolutions[0]);
-		        addrunspentkey.type	  = whichType;
-		        
-		    }
-		    else
-		    {
-		        continue;
-		    }
-		    
+            
+            txnouttype whichType = Solver(tx_in->vout[addrunspentkey.index].scriptPubKey, vSolutions);
+            if (whichType == TX_PUBKEYHASH || whichType == TX_SCRIPTHASH || whichType == TX_WITNESS_V0_KEYHASH)
+            {
+                addrunspentkey.hashBytes = uint160(vSolutions[0]);
+                addrunspentkey.type   = whichType;
+                
+            }
+            else
+            {
+                continue;
+            }
+            
             list_to_remove.push_back(addrunspentkey);
         }
     }
@@ -546,7 +542,6 @@ bool AddressIndex::GetAddressIndex(uint160 addressHash, int type, std::vector<st
 
     return true;
 }
-
 
 struct CAddressIndexIteratorHeightKey {
     unsigned int type;
@@ -653,7 +648,7 @@ bool AddressToHashType(std::string addr_str, uint160& hashBytes, int& type)
 
 bool HashTypeToAddress(const uint160 &hash, const int &type, std::string &address)
 {
-	// (whichType == TX_PUBKEYHASH || whichType == TX_SCRIPTHASH || whichType == TX_WITNESS_V0_KEYHASH)
+    // (whichType == TX_PUBKEYHASH || whichType == TX_SCRIPTHASH || whichType == TX_WITNESS_V0_KEYHASH)
  
     if (type == TX_SCRIPTHASH) {
         address = EncodeDestination(CScriptID(hash));
@@ -742,7 +737,6 @@ UniValue GetAddressesTxs(std::vector<std::pair<uint160, int>> &addresses)
     }
 
     return result;
-	
 }
 
 UniValue GetAddressesUtxos(std::vector<std::pair<uint160, int>> &addresses)
@@ -778,13 +772,13 @@ UniValue GetAddressesUtxos(std::vector<std::pair<uint160, int>> &addresses)
         utxos.push_back(output);
     }
 
-	return utxos;
+    return utxos;
 }
 
 int GetLastUsedIndex(std::vector<std::pair<uint160, int>> &addresses)
 {
-	int r = -1;
-	int index = 0;
+    int r = -1;
+    int index = 0;
     std::vector<std::pair<CAddressIndexKey, CAmount> > txOutputs;
 
     for (std::vector<std::pair<uint160, int> >::iterator it = addresses.begin(); it != addresses.end(); it++) {
@@ -929,5 +923,4 @@ UniValue getaddresstxids(const JSONRPCRequest& request)
     }
 
     return result;
-
 }
