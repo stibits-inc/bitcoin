@@ -21,6 +21,7 @@
 ## G function detail:
 _____________________________________________________________
     position    :   parameter   :   size    :
+-------------------------------------------------------------
     0           :   function    :   1       : equal to 'G' (0x47)
     1           :   from        :   4       : uint32 define the index from witch the generation must starts.
     5           :   count       :   4       : uint define the number of address to generate

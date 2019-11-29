@@ -706,7 +706,7 @@ UniValue GetAddressesTxs(std::vector<std::pair<uint160, int>> &addresses)
 
     std::vector<std::pair<CAddressIndexKey, CAmount> > addressIndex;
 
-    for (std::vector<std::pair<uint160, int> >::iterator it = addresses.begin(); it != addresses.end(); it++) {
+    for (auto it = addresses.begin(); it != addresses.end(); it++) {
 
         if (!GetAddressIndex((*it).first, (*it).second, addressIndex)) {
             throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "No information available for address");
@@ -717,7 +717,7 @@ UniValue GetAddressesTxs(std::vector<std::pair<uint160, int>> &addresses)
     std::set<std::pair<int, std::string> > txids;
     UniValue result(UniValue::VARR);
 
-    for (std::vector<std::pair<CAddressIndexKey, CAmount> >::const_iterator it=addressIndex.begin(); it!=addressIndex.end(); it++) {
+    for (auto it = addressIndex.begin(); it != addressIndex.end(); it++) {
         int height = it->first.blockHeight;
         std::string txid = it->first.txhash.GetHex();
 
@@ -731,7 +731,7 @@ UniValue GetAddressesTxs(std::vector<std::pair<uint160, int>> &addresses)
     }
 
     if (addresses.size() > 1) {
-        for (std::set<std::pair<int, std::string> >::const_iterator it=txids.begin(); it!=txids.end(); it++) {
+        for (auto it=txids.begin(); it!=txids.end(); it++) {
             result.push_back(it->second);
         }
     }

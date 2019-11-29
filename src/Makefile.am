@@ -135,7 +135,6 @@ BITCOIN_CORE_H = \
   index/base.h \
   index/blockfilterindex.h \
   index/txindex.h \
-  index/addressindex.h \
   indirectmap.h \
   init.h \
   interfaces/chain.h \
@@ -187,6 +186,7 @@ BITCOIN_CORE_H = \
   script/sign.h \
   script/standard.h \
   shutdown.h \
+  stib/index/addressindex.h \
   streams.h \
   support/allocators/secure.h \
   support/allocators/zeroafterfree.h \
@@ -266,7 +266,6 @@ libbitcoin_server_a_SOURCES = \
   index/base.cpp \
   index/blockfilterindex.cpp \
   index/txindex.cpp \
-  index/addressindex.cpp \
   interfaces/chain.cpp \
   interfaces/node.cpp \
   init.cpp \
@@ -290,8 +289,10 @@ libbitcoin_server_a_SOURCES = \
   rpc/rawtransaction.cpp \
   rpc/server.cpp \
   script/sigcache.cpp \
+  stib/common.cpp \
   stib/net.cpp \
   stib/rpc.cpp \
+  stib/index/addressindex.cpp \
   shutdown.cpp \
   timedata.cpp \
   torcontrol.cpp \

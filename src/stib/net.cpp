@@ -5,6 +5,7 @@
 
 void GenerateFromXPUB(std::string xpubkey, int from, int count, std::vector<std::string>& out);
 void RecoverFromXPUB(std::string xpubkey, std::vector<std::string>& out); // defined in src/stib/rpc.cpp
+void RecoverTxsFromXPUB(std::string xpubkey, std::vector<std::string>& out); // defined in src/stib/rpc.cpp
 
 static std::string Join(std::vector<std::string>& v, std::string sep = ",")
 {
@@ -47,7 +48,19 @@ std::string ProcessStib(CDataStream& vRecv)
                 std::vector<std::string> out;
                 RecoverFromXPUB(req, out);
 
-                LogPrint(BCLog::NET, "Stib Custom message : Recover  k = %s \n",  req.c_str());
+                LogPrint(BCLog::NET, "Stib Custom message : Recover Utxos k = %s \n",  req.c_str());
+
+                return "{\"result\":[" + Join(out) + "]}";
+                break;
+            }
+            
+        case 'T' :
+            {
+                std::string req = vRecv.str();
+                std::vector<std::string> out;
+                RecoverTxsFromXPUB(req, out);
+
+                LogPrint(BCLog::NET, "Stib Custom message : Recover Txs k = %s \n",  req.c_str());
 
                 return "{\"result\":[" + Join(out) + "]}";
                 break;
