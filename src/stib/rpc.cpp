@@ -18,8 +18,6 @@ UniValue stibgenxpubaddresses(const JSONRPCRequest& request)
             "  \"xpubkey\",  account extended public key ExtPubKey\n"
             "  \"start\", (optional default to 0) index of the first address to generate\n"
             "  \"count\", (optional default to 100) numbre of addresses to generate\n"
-            "  \"for_change\", (boolean optional default to false ) generate addresses for internal use(true), or for external use(false)?\n"
-            "  \"use_bech32\", (boolean optional default to true ) generate witness addresses(true) or legacy addresses(false)?\n"
             "}\n"
             "\nResult\n"
             "[\n"
@@ -32,8 +30,6 @@ UniValue stibgenxpubaddresses(const JSONRPCRequest& request)
             );
 
     std::string xpubkey;
-    bool for_change = false;
-    bool segwit = true;
     int  from = 0;
     int  count = 100;
 
@@ -41,17 +37,6 @@ UniValue stibgenxpubaddresses(const JSONRPCRequest& request)
         UniValue val = find_value(request.params[0].get_obj(), "xpubkey");
         if (val.isStr()) {
             xpubkey = val.get_str();
-        }
-
-        val = find_value(request.params[0].get_obj(), "for_change");
-        if (val.isBool()) {
-            for_change = val.get_bool();
-        }
-
-
-        val = find_value(request.params[0].get_obj(), "use_bech32");
-        if (val.isBool()) {
-            segwit = val.get_bool();
         }
 
         val = find_value(request.params[0].get_obj(), "from");
