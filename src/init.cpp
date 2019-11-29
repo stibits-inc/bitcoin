@@ -23,7 +23,6 @@
 #include <index/blockfilterindex.h>
 #include <interfaces/chain.h>
 #include <index/txindex.h>
-#include <index/addressindex.h>
 #include <key.h>
 #include <validation.h>
 #include <miner.h>
@@ -42,6 +41,7 @@
 #include <script/sigcache.h>
 #include <scheduler.h>
 #include <shutdown.h>
+#include <stib/index/addressindex.h>
 #include <util/threadnames.h>
 #include <timedata.h>
 #include <txdb.h>
