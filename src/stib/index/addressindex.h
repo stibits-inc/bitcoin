@@ -1,10 +1,8 @@
 #ifndef _bitcoin2_addressindex_h_
 #define _bitcoin2_addressindex_h_
 
-
 #include <chain.h>
 #include <index/base.h>
-#include <txdb.h>
 #include <rpc/util.h>
 
 struct CAddressUnspentKey;
@@ -12,9 +10,8 @@ struct CAddressUnspentValue;
 struct CAddressIndexKey;
 
 /**
- * TxIndex is used to look up transactions included in the blockchain by hash.
+ * AddressIndex is used to look up addresses information included in the blockchain.
  * The index is written to a LevelDB database and records the filesystem
- * location of each transaction by transaction hash.
  */
 class AddressIndex final : public BaseIndex
 {
@@ -55,7 +52,7 @@ public:
                                                            
 };
 
-/// The global addresses index, used in GetTransaction. May be null.
+/// The global addresses index. May be null.
 extern std::unique_ptr<AddressIndex> g_addressindex;
 
 bool AddressToHashType(std::string addr_str, uint160& hashBytes, int& type);

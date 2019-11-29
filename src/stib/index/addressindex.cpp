@@ -2,26 +2,12 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <index/addressindex.h>
+#include <stib/index/addressindex.h>
 #include <index/txindex.h>
-#include <shutdown.h>
-#include <ui_interface.h>
-#include <util/system.h>
 #include <validation.h>
-
 #include <key_io.h>
-#include <rpc/blockchain.h>
 #include <rpc/server.h>
-#include <rpc/util.h>
 
-#include <script/standard.h>
-#include <pubkey.h>
-
-#include <boost/thread.hpp>
-
-#include <util/strencodings.h>
-
-//constexpr char DB_BEST_BLOCK = 'B';
 constexpr char DB_ADDRESSINDEX = 'a';
 constexpr char DB_ADDRESSUNSPENTINDEX = 'u';
 

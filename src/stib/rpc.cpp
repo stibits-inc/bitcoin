@@ -1,9 +1,7 @@
-
-
 #include <rpc/blockchain.h>
 #include <rpc/server.h>
 #include <rpc/util.h>
- 
+
 void RecoverFromXPUB(std::string xpubkey, UniValue& out);
 void GenerateFromXPUB(std::string xpubkey, int from, int count, UniValue& out);
 int GetLastUsedExternalSegWitIndex(std::string& xpubkey);
@@ -32,8 +30,8 @@ UniValue stibgenxpubaddresses(const JSONRPCRequest& request)
             + HelpExampleCli("stibgenxpubaddresses", "'{\"xpubkey\": \"xpub6Bgu572Y3EWgEq8gkVxmznPkb8hWkgYR9E6KTZN3pyM3hhC7WvwgHNchSCrC19a7nZ3ddyjwB26rbePuyATc55snUwWKkszRnvVwfmBshdS\"}'")
             + HelpExampleRpc("stibgenxpubaddresses", "{\"xpubkey\": \"xpub6Bgu572Y3EWgEq8gkVxmznPkb8hWkgYR9E6KTZN3pyM3hhC7WvwgHNchSCrC19a7nZ3ddyjwB26rbePuyATc55snUwWKkszRnvVwfmBshdS\"}")
             );
-   
-	std::string xpubkey;
+
+    std::string xpubkey;
     bool for_change = false;
     bool segwit = true;
     int  from = 0;
@@ -44,33 +42,33 @@ UniValue stibgenxpubaddresses(const JSONRPCRequest& request)
         if (val.isStr()) {
             xpubkey = val.get_str();
         }
-        
+
         val = find_value(request.params[0].get_obj(), "for_change");
         if (val.isBool()) {
             for_change = val.get_bool();
         }
-        
-        
+
+
         val = find_value(request.params[0].get_obj(), "use_bech32");
         if (val.isBool()) {
             segwit = val.get_bool();
         }
-        
+
         val = find_value(request.params[0].get_obj(), "from");
         if (val.isNum()) {
             from = val.get_int();
         }
-                
+
         val = find_value(request.params[0].get_obj(), "count");
         if (val.isNum()) {
             count = val.get_int();
         }
     }
-     
-	UniValue addrs(UniValue::VARR);
+
+    UniValue addrs(UniValue::VARR);
     GenerateFromXPUB(xpubkey, from, count, addrs);
-    
-	return addrs;
+
+    return addrs;
 }
 
 UniValue stibgetxpubutxos(const JSONRPCRequest& request)
@@ -97,8 +95,8 @@ UniValue stibgetxpubutxos(const JSONRPCRequest& request)
             + HelpExampleCli("stibgetxpubutxos", "'{\"xpubkey\": \"xpub6Bgu572Y3EWgEq8gkVxmznPkb8hWkgYR9E6KTZN3pyM3hhC7WvwgHNchSCrC19a7nZ3ddyjwB26rbePuyATc55snUwWKkszRnvVwfmBshdS\"}'")
             + HelpExampleRpc("stibgetxpubutxos", "{\"xpubkey\": \"xpub6Bgu572Y3EWgEq8gkVxmznPkb8hWkgYR9E6KTZN3pyM3hhC7WvwgHNchSCrC19a7nZ3ddyjwB26rbePuyATc55snUwWKkszRnvVwfmBshdS\"}")
             );
-   
-	std::string xpubkey;
+
+    std::string xpubkey;
 
     if (request.params[0].isObject()) {
         UniValue val = find_value(request.params[0].get_obj(), "xpubkey");
@@ -106,9 +104,9 @@ UniValue stibgetxpubutxos(const JSONRPCRequest& request)
             xpubkey = val.get_str();
         }
     }
-    
+
     UniValue utxos(UniValue::VARR);
-	RecoverFromXPUB(xpubkey, utxos);
+    RecoverFromXPUB(xpubkey, utxos);
     return utxos;
 
 }
@@ -132,8 +130,8 @@ UniValue stibgetlastusedhdindex(const JSONRPCRequest& request)
             + HelpExampleCli("stibgetlastusedhdindex", "'{\"xpubkey\": \"xpub6Bgu572Y3EWgEq8gkVxmznPkb8hWkgYR9E6KTZN3pyM3hhC7WvwgHNchSCrC19a7nZ3ddyjwB26rbePuyATc55snUwWKkszRnvVwfmBshdS\"}'")
             + HelpExampleRpc("stibgetlastusedhdindex", "{\"xpubkey\": \"xpub6Bgu572Y3EWgEq8gkVxmznPkb8hWkgYR9E6KTZN3pyM3hhC7WvwgHNchSCrC19a7nZ3ddyjwB26rbePuyATc55snUwWKkszRnvVwfmBshdS\"}")
             );
-   
-	std::string xpubkey;
+
+    std::string xpubkey;
 
     if (request.params[0].isObject()) {
         UniValue val = find_value(request.params[0].get_obj(), "xpubkey");
@@ -143,10 +141,10 @@ UniValue stibgetlastusedhdindex(const JSONRPCRequest& request)
     }
 
     int r = GetLastUsedExternalSegWitIndex(xpubkey);
-    
+
     UniValue obj(UniValue::VOBJ);
     obj.pushKV("lastindex", r);
-    
+
     return obj;
 }
 
