@@ -81,7 +81,6 @@ std::string ProcessStib(CDataStream& vRecv)
                 std::string req = vRecv.str();
                 std::vector<std::string> out;
                 RecoverTxsFromXPUB(req, out);
-                
 
                 for(auto t: out)
                 {
@@ -91,10 +90,7 @@ std::string ProcessStib(CDataStream& vRecv)
                     uint256 hash_block;
                     if (g_txindex && g_txindex->FindTx(h, hash_block, tx ))
                     {
-                        UniValue result(UniValue::VOBJ);
-                        result.pushKV("hex",  EncodeHexTx((CTransaction&)tx, 0));
-                        LogPrint(BCLog::NET, "Stib Custom message : Recover Txs k = %s\n",  req.c_str());
-                        return "{\"result\":{" + result.write() + "}}";;
+                        out.push_back("{\"hex\":" + EncodeHexTx(*tx, 0) + "}");
                     }
 
                 }
