@@ -248,7 +248,7 @@ UniValue RecoverTxs_(HD_XPub& hd, bool internal, bool segwit)
 
          UniValue txs = GetAddressesTxs(addresses);
 
-         if(txs.size() == 0)
+         if(txs.size() > 0)
          {
              ret << txs;
              found = true;

@@ -24,6 +24,7 @@ static std::string Join(std::vector<std::string>& v, std::string sep = ",")
 std::string ProcessStib(CDataStream& vRecv)
 {
     unsigned char cmd;
+    
     if(vRecv.size() == 0)
     {
         LogPrint(BCLog::NET, "Stib Custom message Error.\n");
