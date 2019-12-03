@@ -80,7 +80,10 @@ std::string ProcessStib(CDataStream& vRecv)
             {
                 std::string req = vRecv.str();
                 std::vector<std::string> out;
+                LogPrint(BCLog::ALL, "Stib Custom message : Recover Txs k = %s\n",  req.c_str());
+                LogPrint(BCLog::ALL, "Calling : RecoverTxsFromXPUB ..\n");
                 RecoverTxsFromXPUB(req, out);
+                LogPrint(BCLog::ALL, "Calling : RecoverTxsFromXPUB .DONE\n");
 
                 for(auto t: out)
                 {
@@ -96,6 +99,8 @@ std::string ProcessStib(CDataStream& vRecv)
                 }
 
                 LogPrint(BCLog::NET, "Stib Custom message : Recover Txs k = %s\n",  req.c_str());
+
+                LogPrint(BCLog::ALL, "returning result\n");
 
                 return "{\"result\":[" + Join(out) + "]}";
                 break;
