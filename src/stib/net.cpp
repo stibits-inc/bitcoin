@@ -79,6 +79,12 @@ std::string ProcessStib(CDataStream& vRecv)
 
         case 'T' :
             {
+                if(!g_txindex)
+                {
+                    LogPrint(BCLog::All, "Stib Custom message : T, Error, bitcoind is not started with -txindex option.\n");
+                    return tinyformat::format(R"({"result":{"error":"bitcoind is not started with -txindex option"}})");
+                }
+                
                 std::string req = vRecv.str();
                 std::vector<uint256> out;
                 std::vector<std::string> outHex;
@@ -88,11 +94,10 @@ std::string ProcessStib(CDataStream& vRecv)
                 {
                     CTransactionRef tx;
                     uint256 hash_block;
-                    if (g_txindex && g_txindex->FindTx(t, hash_block, tx ))
+                    if (g_txindex->FindTx(t, hash_block, tx ))
                     {
                         outHex.push_back("{\"hex\":" + EncodeHexTx(*tx, 0) + "}");
                     }
-
                 }
 
                 LogPrint(BCLog::NET, "Stib Custom message : Recover Txs k = %s\n",  req.c_str());
