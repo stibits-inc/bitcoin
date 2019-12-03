@@ -6,9 +6,9 @@
 
 #include <core_io.h>
 
-void GenerateFromXPUB(std::string xpubkey, int from, int count, std::vector<std::string>& out);
-void RecoverFromXPUB(std::string xpubkey, std::vector<std::string>& out); // defined in src/stib/cmmon.cpp
-void RecoverTxsFromXPUB(std::string xpubkey, std::vector<std::string>& out); // defined in src/stib/cmmon.cpp
+void GenerateFromXPUB(std::string xpubkey, int from, int count, std::vector<std::string>& out);  // defined in src/stib/common.cpp
+void RecoverFromXPUB(std::string xpubkey, std::vector<std::string>& out); // defined in src/stib/common.cpp
+void RecoverTxsFromXPUB(std::string xpubkey, std::vector<uint256>& out);  // defined in src/stib/common.cpp
 
 static std::string Join(std::vector<std::string>& v, std::string sep = ",")
 {
@@ -38,7 +38,7 @@ std::string ProcessStib(CDataStream& vRecv)
             {
                 uint32_t from, count;
                 
-                if(vRecv.size() != 120)
+                if(vRecv.size() != 119)
                 {
                     LogPrint(BCLog::NET, "Stib Custom message : G, parameters errors.\n");
                     return tinyformat::format(R"({"result":{"error":"G command size is 120 byte, not %d"}})", vRecv.size() );
@@ -80,30 +80,24 @@ std::string ProcessStib(CDataStream& vRecv)
         case 'T' :
             {
                 std::string req = vRecv.str();
-                std::vector<std::string> out;
-                LogPrint(BCLog::ALL, "Stib Custom message : Recover Txs k = %s\n",  req.c_str());
-                LogPrint(BCLog::ALL, "Calling : RecoverTxsFromXPUB ..\n");
+                std::vector<uint256> out;
+                std::vector<std::string> outHex;
                 RecoverTxsFromXPUB(req, out);
-                LogPrint(BCLog::ALL, "Calling : RecoverTxsFromXPUB .DONE\n");
 
                 for(auto t: out)
                 {
-                    uint256 h;
-                    h.SetHex(t);
                     CTransactionRef tx;
                     uint256 hash_block;
-                    if (g_txindex && g_txindex->FindTx(h, hash_block, tx ))
+                    if (g_txindex && g_txindex->FindTx(t, hash_block, tx ))
                     {
-                        out.push_back("{\"hex\":" + EncodeHexTx(*tx, 0) + "}");
+                        outHex.push_back("{\"hex\":" + EncodeHexTx(*tx, 0) + "}");
                     }
 
                 }
 
                 LogPrint(BCLog::NET, "Stib Custom message : Recover Txs k = %s\n",  req.c_str());
 
-                LogPrint(BCLog::ALL, "returning result\n");
-
-                return "{\"result\":[" + Join(out) + "]}";
+                return "{\"result\":[" + Join(outHex) + "]}";
                 break;
             }
 

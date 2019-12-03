@@ -123,6 +123,15 @@ static std::vector<std::string>& operator <<(std::vector<std::string>& arr, cons
     return arr;
 }
 
+static std::vector<uint256>& operator <<(std::vector<uint256>& arr, const std::vector<uint256>& a) {
+    for(size_t i = 0; i < a.size(); i++)
+    {
+        arr.push_back(a[i]);
+    }
+
+    return arr;
+}
+
 #define BLOCK_SIZE 100
 
 int GetLastUsedExternalSegWitIndex(std::string& xpubkey)
@@ -195,7 +204,7 @@ UniValue Recover_(HD_XPub& hd, bool internal, bool segwit)
 
          if(utxos.size() == 0)
          {
-             UniValue txs = GetAddressesTxs(addresses);
+             std::vector<uint256>  txs = GetAddressesTxs(addresses);
              found = txs.size() > 0;
          }
          else
@@ -214,7 +223,7 @@ UniValue Recover_(HD_XPub& hd, bool internal, bool segwit)
      return ret;
 }
 
-UniValue RecoverTxs_(HD_XPub& hd, bool internal, bool segwit)
+std::vector<uint256> RecoverTxs_(HD_XPub& hd, bool internal, bool segwit)
 {
     /*
      * repeat
@@ -224,7 +233,7 @@ UniValue RecoverTxs_(HD_XPub& hd, bool internal, bool segwit)
      *
      */
 
-     UniValue ret(UniValue::VARR);
+     std::vector<uint256>  ret;
 
      uint32_t last =  0;
 
@@ -246,7 +255,7 @@ UniValue RecoverTxs_(HD_XPub& hd, bool internal, bool segwit)
             }
          }
 
-         UniValue txs = GetAddressesTxs(addresses);
+         std::vector<uint256>  txs = GetAddressesTxs(addresses);
 
          if(txs.size() > 0)
          {
@@ -312,7 +321,7 @@ void RecoverFromXPUB(std::string xpubkey, std::vector<std::string>& out)
           << Recover_(xpub, true, true);
 }
 
-void RecoverTxsFromXPUB(std::string xpubkey, std::vector<std::string>& out)
+void RecoverTxsFromXPUB(std::string xpubkey, std::vector<uint256>& out)
 {
     HD_XPub xpub(xpubkey);
 

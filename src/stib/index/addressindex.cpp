@@ -687,7 +687,7 @@ bool heightSort(std::pair<CAddressUnspentKey, CAddressUnspentValue> a,
     return a.second.blockHeight < b.second.blockHeight;
 }
 
-UniValue GetAddressesTxs(std::vector<std::pair<uint160, int>> &addresses)
+std::vector<uint256> GetAddressesTxs(std::vector<std::pair<uint160, int>> &addresses)
 {
 
     std::vector<std::pair<CAddressIndexKey, CAmount> > addressIndex;
@@ -700,18 +700,17 @@ UniValue GetAddressesTxs(std::vector<std::pair<uint160, int>> &addresses)
         }
     }
 
-    std::set<std::pair<int, std::string> > txids;
-    UniValue result(UniValue::VARR);
+    std::set<std::pair<int, uint256> > txids;
+    std::vector<uint256> result;
 
     for (auto it = addressIndex.begin(); it != addressIndex.end(); it++) {
         int height = it->first.blockHeight;
-        std::string txid = it->first.txhash.GetHex();
 
         if (addresses.size() > 1) {
-            txids.insert(std::make_pair(height, txid));
+            txids.insert(std::make_pair(height, it->first.txhash));
         } else {
-            if (txids.insert(std::make_pair(height, txid)).second) {
-                result.push_back(txid);
+            if (txids.insert(std::make_pair(height, it->first.txhash)).second) {
+                result.push_back(it->first.txhash);
             }
         }
     }
