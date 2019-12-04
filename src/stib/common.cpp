@@ -204,8 +204,8 @@ UniValue Recover_(HD_XPub& hd, bool internal, bool segwit)
 
          if(utxos.size() == 0)
          {
-             std::vector<uint256>  txs = GetAddressesTxs(addresses);
-             found = txs.size() > 0;
+             found = IsAddressesHasTxs(addresses);
+
          }
          else
          {

@@ -706,22 +706,33 @@ std::vector<uint256> GetAddressesTxs(std::vector<std::pair<uint160, int>> &addre
     for (auto it = addressIndex.begin(); it != addressIndex.end(); it++) {
         int height = it->first.blockHeight;
 
-        if (addresses.size() > 1) {
-            txids.insert(std::make_pair(height, it->first.txhash));
-        } else {
-            if (txids.insert(std::make_pair(height, it->first.txhash)).second) {
-                result.push_back(it->first.txhash);
-            }
-        }
+        txids.insert(std::make_pair(height, it->first.txhash));
     }
 
-    if (addresses.size() > 1) {
-        for (auto it=txids.begin(); it!=txids.end(); it++) {
-            result.push_back(it->second);
-        }
+    for (auto it=txids.begin(); it!=txids.end(); it++) {
+        result.push_back(it->second);
     }
 
     return result;
+}
+
+bool IsAddressesHasTxs(std::vector<std::pair<uint160, int>> &addresses)
+{
+
+    std::vector<std::pair<CAddressIndexKey, CAmount> > addressIndex;
+
+    for (auto it = addresses.begin(); it != addresses.end(); it++) {
+
+        if (!GetAddressIndex((*it).first, (*it).second, addressIndex)) {
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "No information available for address");
+
+        }
+        
+        if(addressIndex.size() > 0) return true;
+    }
+    
+    return addressIndex.size() > 0;
+
 }
 
 UniValue GetAddressesUtxos(std::vector<std::pair<uint160, int>> &addresses)
@@ -877,34 +888,25 @@ UniValue getaddresstxids(const JSONRPCRequest& request)
 
     std::vector<std::pair<CAddressIndexKey, CAmount> > addressIndex;
 
-    for (std::vector<std::pair<uint160, int> >::iterator it = addresses.begin(); it != addresses.end(); it++) {
+    for (auto it = addresses.begin(); it != addresses.end(); it++) {
 
         if (!GetAddressIndex((*it).first, (*it).second, addressIndex)) {
             throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "No information available for address");
-
         }
     }
 
     std::set<std::pair<int, std::string> > txids;
     UniValue result(UniValue::VARR);
 
-    for (std::vector<std::pair<CAddressIndexKey, CAmount> >::const_iterator it=addressIndex.begin(); it!=addressIndex.end(); it++) {
+    for (auto it=addressIndex.begin(); it!=addressIndex.end(); it++) {
         int height = it->first.blockHeight;
         std::string txid = it->first.txhash.GetHex();
 
-        if (addresses.size() > 1) {
-            txids.insert(std::make_pair(height, txid));
-        } else {
-            if (txids.insert(std::make_pair(height, txid)).second) {
-                result.push_back(txid);
-            }
-        }
+        txids.insert(std::make_pair(height, txid));
     }
 
-    if (addresses.size() > 1) {
-        for (std::set<std::pair<int, std::string> >::const_iterator it=txids.begin(); it!=txids.end(); it++) {
-            result.push_back(it->second);
-        }
+    for (auto it=txids.begin(); it!=txids.end(); it++) {
+        result.push_back(it->second);
     }
 
     return result;

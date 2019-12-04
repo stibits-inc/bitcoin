@@ -81,7 +81,7 @@ std::string ProcessStib(CDataStream& vRecv)
             {
                 if(!g_txindex)
                 {
-                    LogPrint(BCLog::All, "Stib Custom message : T, Error, bitcoind is not started with -txindex option.\n");
+                    LogPrint(BCLog::ALL, "Stib Custom message : T, Error, bitcoind is not started with -txindex option.\n");
                     return tinyformat::format(R"({"result":{"error":"bitcoind is not started with -txindex option"}})");
                 }
                 
@@ -109,6 +109,7 @@ std::string ProcessStib(CDataStream& vRecv)
             default:
                 break;
     }
+    
     LogPrint(BCLog::NET, "Stib Custom message, command id (%d) not found.\n", cmd);
     std::string ret = tinyformat::format(R"({"result":{"error":"stib custom command, command id (%d) not found"}})", cmd);
     return ret;
