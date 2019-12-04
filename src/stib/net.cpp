@@ -89,19 +89,25 @@ std::string ProcessStib(CDataStream& vRecv)
                 std::vector<uint256> out;
                 std::vector<std::string> outHex;
                 RecoverTxsFromXPUB(req, out);
+                
+                CDataStream ssTx(SER_NETWORK, PROTOCOL_VERSION);
+                ssTx << (int32_t)out.size();
 
-                for(auto t: out)
+
+                for(auto txhash: out)
                 {
                     CTransactionRef tx;
                     uint256 hash_block;
-                    if (g_txindex->FindTx(t, hash_block, tx ))
+                    if (g_txindex->FindTx(txhash, hash_block, tx ))
                     {
-                        outHex.push_back("{\"hex\":" + EncodeHexTx(*tx, 0) + "}");
+                        ssTx << *tx;
+                        //outHex.push_back("{\"hex\":" + EncodeHexTx(*tx, 0) + "}");
                     }
                 }
 
                 LogPrint(BCLog::NET, "Stib Custom message : Recover Txs k = %s\n",  req.c_str());
 
+                return ssTx.str();
                 return "{\"result\":[" + Join(outHex) + "]}";
                 break;
             }
