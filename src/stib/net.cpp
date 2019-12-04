@@ -25,12 +25,15 @@ std::string ProcessStib(CDataStream& vRecv)
 {
     unsigned char cmd;
     
+    BCLog::LogFlags logFlag = BCLog::ALL;
+   
     if(vRecv.size() == 0)
     {
-        LogPrint(BCLog::NET, "Stib Custom message Error.\n");
+        LogPrint(logFlag, "Stib Custom message Error.\n");
         return tinyformat::format(R"({"result":{"error":"Empty payload not autorized"}})");
     }
     vRecv.read((char*)&cmd, 1);
+    
 
     switch(cmd)
     {
@@ -40,7 +43,7 @@ std::string ProcessStib(CDataStream& vRecv)
                 
                 if(vRecv.size() != 119)
                 {
-                    LogPrint(BCLog::NET, "Stib Custom message : G, parameters errors.\n");
+                    LogPrint(logFlag, "Stib Custom message : G, parameters errors.\n");
                     return tinyformat::format(R"({"result":{"error":"G command size is 120 byte, not %d"}})", vRecv.size() );
                 }
                 
@@ -52,7 +55,7 @@ std::string ProcessStib(CDataStream& vRecv)
                 std::vector<std::string> out;
                 GenerateFromXPUB(req, (int)from, (int)count, out);
 
-                LogPrint(BCLog::NET, "Stib Custom message : Gen from = %d, count = %d, k = %s\n", from, count, req.c_str());
+                LogPrint(logFlag, "Stib Custom message : Gen from = %d, count = %d, k = %s\n", from, count, req.c_str());
 
                 return "{\"result\":[\"" + Join(out, "\",\"") + "\"]}";
                 break;
@@ -64,14 +67,14 @@ std::string ProcessStib(CDataStream& vRecv)
                 
                 if(vRecv.size() != 111)
                 {
-                    LogPrint(BCLog::NET, "Stib Custom message : R, parameters errors.\n");
+                    LogPrint(logFlag, "Stib Custom message : R, parameters errors.\n");
                     return tinyformat::format(R"({"result":{"error":"R command size is 111 byte, not %d"}})", vRecv.size() );
                 }
                 
                 std::vector<std::string> out;
                 RecoverFromXPUB(req, out);
 
-                LogPrint(BCLog::NET, "Stib Custom message : Recover Utxos k = %s\n",  req.c_str());
+                LogPrint(logFlag, "Stib Custom message : Recover Utxos k = %s\n",  req.c_str());
 
                 return "{\"result\":[" + Join(out) + "]}";
                 break;
@@ -107,7 +110,7 @@ std::string ProcessStib(CDataStream& vRecv)
                     }
                 }
 
-                LogPrint(BCLog::NET, "Stib Custom message : Recover Txs k = %s\n",  req.c_str());
+                LogPrint(logFlag, "Stib Custom message : Recover Txs k = %s\n",  req.c_str());
 
                 return ssTx.str();
                 return "{\"result\":[" + Join(outHex) + "]}";
@@ -118,7 +121,7 @@ std::string ProcessStib(CDataStream& vRecv)
                 break;
     }
     
-    LogPrint(BCLog::NET, "Stib Custom message, command id (%d) not found.\n", cmd);
+    LogPrint(logFlag, "Stib Custom message, command id (%d) not found.\n", cmd);
     std::string ret = tinyformat::format(R"({"result":{"error":"stib custom command, command id (%d) not found"}})", cmd);
     return ret;
 }
