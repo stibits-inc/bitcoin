@@ -92,7 +92,9 @@ std::string ProcessStib(CDataStream& vRecv)
                 
                 CDataStream ssTx(SER_NETWORK, PROTOCOL_VERSION);
                 ssTx << (int32_t)out.size();
-
+                
+                if(out.size())
+                    LogPrint(BCLog::ALL, "Stib Custom message : T, %d, Transactions found.\n", out.size());
 
                 for(auto txhash: out)
                 {
