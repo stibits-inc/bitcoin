@@ -7,8 +7,11 @@
 #include <core_io.h>
 
 void GenerateFromXPUB(std::string xpubkey, int from, int count, std::vector<std::string>& out);  // defined in src/stib/common.cpp
+void GenerateFromXPUB(std::string xpubkey, int from, int count, CDataStream& ss);  // defined in src/stib/common.cpp
+
 void RecoverFromXPUB(std::string xpubkey, std::vector<std::string>& out); // defined in src/stib/common.cpp
 uint32_t RecoverFromXPUB(std::string xpubkey, CDataStream& out); // defined in src/stib/common.cpp
+
 void RecoverTxsFromXPUB(std::string xpubkey, std::vector<uint256>& out);  // defined in src/stib/common.cpp
 
 static std::string Join(std::vector<std::string>& v, std::string sep = ",")
@@ -52,14 +55,12 @@ std::string ProcessStib(CDataStream& vRecv)
                 vRecv.read((char*)&count, 4);
 
                 std::string req = vRecv.str();
-
-                std::vector<std::string> out;
-                GenerateFromXPUB(req, (int)from, (int)count, out);
-                CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
-
                 LogPrint(logFlag, "Stib Custom message : Gen from = %d, count = %d, k = %s\n", from, count, req.c_str());
 
-                return "{\"result\":[\"" + Join(out, "\",\"") + "\"]}";
+                CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
+                GenerateFromXPUB(req, (int)from, (int)count, ss);
+
+                return ss.str();
                 break;
             }
 
