@@ -80,7 +80,7 @@ std::string ProcessStib(CDataStream& vRecv)
                 
                 CDataStream tmp(SER_NETWORK, PROTOCOL_VERSION);
                 WriteCompactSize(tmp, count);
-                ss.insert(ss.begin(), tmp.begin(), tmp.end() );
+                ss.insert(ss.begin(), (const char*)tmp.data(), (const char*)tmp.data() + tmp.size());
                 
                 return ss.str();
                 break;
