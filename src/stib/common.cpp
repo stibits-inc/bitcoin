@@ -362,12 +362,7 @@ void GenerateFromXPUB(std::string xpubkey, int from, int count, CDataStream& ss)
 
     std::vector<std::string> v = xpub.Derive(from, count, false, true);
     
-    ss << (uint32_t) v.size();
-
-    for(auto addr : v)
-    {
-        ss << addr;
-    }
+    ss << v;
 }
 
 void RecoverFromXPUB(std::string xpubkey, UniValue& out)
