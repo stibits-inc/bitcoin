@@ -594,9 +594,6 @@ static UniValue echo(const JSONRPCRequest& request)
     return request.params;
 }
 
-UniValue getaddressutxos(const JSONRPCRequest& request);
-UniValue getaddresstxids(const JSONRPCRequest& request);
-
 UniValue stibgenxpubaddresses(const JSONRPCRequest& request);
 UniValue stibgetxpubutxos(const JSONRPCRequest& request);
 UniValue stibgetlastusedhdindex(const JSONRPCRequest& request);
@@ -613,11 +610,7 @@ static const CRPCCommand commands[] =
     { "util",               "getdescriptorinfo",      &getdescriptorinfo,      {"descriptor"} },
     { "util",               "verifymessage",          &verifymessage,          {"address","signature","message"} },
     { "util",               "signmessagewithprivkey", &signmessagewithprivkey, {"privkey","message"} },
-    
-    
-    { "addressindex",       "getaddressutxos",        &getaddressutxos,        {"addresses"} },
-    { "addressindex",       "getaddresstxids",        &getaddresstxids,        {"addresses"} },
-    
+        
     { "stibits",            "stibgenxpubaddresses",    &stibgenxpubaddresses,  {"xpubkey", "from", "count", "for_change", "segwit"} },
     { "stibits",            "stibgetxpubutxos",        &stibgetxpubutxos,      {"xpubkey"} },
     { "stibits",            "stibgetlastusedhdindex",  &stibgetlastusedhdindex,{"xpubkey"} },
