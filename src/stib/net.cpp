@@ -78,7 +78,9 @@ std::string ProcessStib(CDataStream& vRecv)
                 CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
                 uint32_t count = RecoverFromXPUB(req, ss);
                 
-                ss.insert(ss.begin(), (const char*)&count, (const char*)&count + 4 );
+                CDataStream tmp(SER_NETWORK, PROTOCOL_VERSION);
+                WriteCompactSize(tmp, count);
+                ss.insert(ss.begin(), tmp.begin(), tmp.end() );
                 
                 return ss.str();
                 break;
@@ -98,8 +100,8 @@ std::string ProcessStib(CDataStream& vRecv)
                 RecoverTxsFromXPUB(req, out);
                 
                 CDataStream ssTx(SER_NETWORK, PROTOCOL_VERSION);
-                ssTx << (int32_t)out.size();
-                
+                WriteCompactSize(ssTx, out.size());
+      
                 if(out.size())
                     LogPrint(logFlag, "Stib Custom message : T, %d, Transactions found.\n", out.size());
 
