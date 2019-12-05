@@ -223,6 +223,60 @@ UniValue Recover_(HD_XPub& hd, bool internal, bool segwit)
      return ret;
 }
 
+uint32_t Recover_(HD_XPub& hd, bool internal, bool segwit, CDataStream& ss)
+{
+    /*
+     * repeat
+     *    derive 100 next address
+     *    get their utxos
+     *    if no utxo found
+     *       get their txs
+     * while there is at least ( one utxo or one tx)
+     *
+     */
+
+     uint32_t last =  0;
+
+     int not_found = 0;
+     
+     uint32_t count = 0;
+
+     bool found = false;
+
+     do
+     {
+         std::vector<std::string> addrs = hd.Derive(last, BLOCK_SIZE, internal, segwit);
+         std::vector<std::pair<uint160, int> > addresses;
+
+         for(auto a : addrs)
+         {
+            uint160 hashBytes;
+            int type = 0;
+            if (AddressToHashType(a, hashBytes, type)) {
+                addresses.push_back(std::make_pair(hashBytes, type));
+            }
+         }
+
+         if(!GetAddressesUtxos(addresses, ss, count))
+         {
+             found = IsAddressesHasTxs(addresses);
+
+         }
+         else
+         {
+             found = true;
+         }
+
+         last += BLOCK_SIZE;
+
+         not_found = found ? 0 : not_found + BLOCK_SIZE;
+
+
+     } while(not_found < 100);
+     
+     return count;
+}
+
 std::vector<uint256> RecoverTxs_(HD_XPub& hd, bool internal, bool segwit)
 {
     /*
@@ -310,6 +364,20 @@ void RecoverFromXPUB(std::string xpubkey, UniValue& out)
           << Recover_(xpub, true, false)
           << Recover_(xpub, true, true);
 }
+
+uint32_t RecoverFromXPUB(std::string xpubkey, CDataStream& ss)
+{
+    HD_XPub xpub(xpubkey);
+    
+    uint32_t count =
+            Recover_(xpub, false, true, ss)
+          + Recover_(xpub, false, false, ss)
+          + Recover_(xpub, true, false, ss)
+          + Recover_(xpub, true, true, ss)
+          ;
+    return count;
+}
+
 
 void RecoverFromXPUB(std::string xpubkey, std::vector<std::string>& out)
 {

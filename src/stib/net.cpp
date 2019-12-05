@@ -8,6 +8,7 @@
 
 void GenerateFromXPUB(std::string xpubkey, int from, int count, std::vector<std::string>& out);  // defined in src/stib/common.cpp
 void RecoverFromXPUB(std::string xpubkey, std::vector<std::string>& out); // defined in src/stib/common.cpp
+uint32_t RecoverFromXPUB(std::string xpubkey, CDataStream& out); // defined in src/stib/common.cpp
 void RecoverTxsFromXPUB(std::string xpubkey, std::vector<uint256>& out);  // defined in src/stib/common.cpp
 
 static std::string Join(std::vector<std::string>& v, std::string sep = ",")
@@ -25,11 +26,11 @@ std::string ProcessStib(CDataStream& vRecv)
 {
     unsigned char cmd;
     
-    BCLog::LogFlags logFlag = BCLog::ALL;
+    BCLog::LogFlags logFlag = BCLog::NET;
    
     if(vRecv.size() == 0)
     {
-        LogPrint(logFlag, "Stib Custom message Error.\n");
+        LogPrintf("Stib Custom message Error.\n");
         return tinyformat::format(R"({"result":{"error":"Empty payload not autorized"}})");
     }
     vRecv.read((char*)&cmd, 1);
@@ -43,7 +44,7 @@ std::string ProcessStib(CDataStream& vRecv)
                 
                 if(vRecv.size() != 119)
                 {
-                    LogPrint(logFlag, "Stib Custom message : G, parameters errors.\n");
+                    LogPrintf( "Stib Custom message : G, parameters errors.\n");
                     return tinyformat::format(R"({"result":{"error":"G command size is 120 byte, not %d"}})", vRecv.size() );
                 }
                 
@@ -54,6 +55,7 @@ std::string ProcessStib(CDataStream& vRecv)
 
                 std::vector<std::string> out;
                 GenerateFromXPUB(req, (int)from, (int)count, out);
+                CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
 
                 LogPrint(logFlag, "Stib Custom message : Gen from = %d, count = %d, k = %s\n", from, count, req.c_str());
 
@@ -64,19 +66,20 @@ std::string ProcessStib(CDataStream& vRecv)
         case 'R' :
             {
                 std::string req = vRecv.str();
+                LogPrint(logFlag, "Stib Custom message : Recover Utxos k = %s\n",  req.c_str());
                 
                 if(vRecv.size() != 111)
                 {
-                    LogPrint(logFlag, "Stib Custom message : R, parameters errors.\n");
+                    LogPrintf( "Stib Custom message : R, parameters errors.\n");
                     return tinyformat::format(R"({"result":{"error":"R command size is 111 byte, not %d"}})", vRecv.size() );
                 }
                 
-                std::vector<std::string> out;
-                RecoverFromXPUB(req, out);
-
-                LogPrint(logFlag, "Stib Custom message : Recover Utxos k = %s\n",  req.c_str());
-
-                return "{\"result\":[" + Join(out) + "]}";
+                CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
+                uint32_t count = RecoverFromXPUB(req, ss);
+                
+                ss.insert(ss.begin(), (const char*)&count, (const char*)&count + 4 );
+                
+                return ss.str();
                 break;
             }
 
@@ -84,7 +87,7 @@ std::string ProcessStib(CDataStream& vRecv)
             {
                 if(!g_txindex)
                 {
-                    LogPrint(BCLog::ALL, "Stib Custom message : T, Error, bitcoind is not started with -txindex option.\n");
+                    LogPrintf("Stib Custom message : T, Error, bitcoind is not started with -txindex option.\n");
                     return tinyformat::format(R"({"result":{"error":"bitcoind is not started with -txindex option"}})");
                 }
                 
@@ -97,7 +100,7 @@ std::string ProcessStib(CDataStream& vRecv)
                 ssTx << (int32_t)out.size();
                 
                 if(out.size())
-                    LogPrint(BCLog::ALL, "Stib Custom message : T, %d, Transactions found.\n", out.size());
+                    LogPrint(logFlag, "Stib Custom message : T, %d, Transactions found.\n", out.size());
 
                 for(auto txhash: out)
                 {
@@ -106,7 +109,6 @@ std::string ProcessStib(CDataStream& vRecv)
                     if (g_txindex->FindTx(txhash, hash_block, tx ))
                     {
                         ssTx << *tx;
-                        //outHex.push_back("{\"hex\":" + EncodeHexTx(*tx, 0) + "}");
                     }
                 }
 

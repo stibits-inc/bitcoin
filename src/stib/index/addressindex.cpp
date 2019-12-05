@@ -737,6 +737,29 @@ UniValue GetAddressesUtxos(std::vector<std::pair<uint160, int>> &addresses)
     return utxos;
 }
 
+bool GetAddressesUtxos(std::vector<std::pair<uint160, int>> &addresses, CDataStream& ss, uint32_t& count)
+{
+    std::vector<std::pair<CAddressUnspentKey, CAddressUnspentValue> > unspentOutputs;
+
+    for (std::vector<std::pair<uint160, int> >::iterator it = addresses.begin(); it != addresses.end(); it++) {
+
+            if (!GetAddressUnspent((*it).first, (*it).second, unspentOutputs)) {
+                throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "No information available for address");
+            }
+    }
+
+    std::sort(unspentOutputs.begin(), unspentOutputs.end(), heightSort);
+
+    count += unspentOutputs.size();
+
+    for (auto it=unspentOutputs.begin(); it!=unspentOutputs.end(); it++) {
+        
+        ss << *it;
+    }
+
+    return unspentOutputs.size() > 0;
+}
+
 int GetLastUsedIndex(std::vector<std::pair<uint160, int>> &addresses)
 {
     int r = -1;
