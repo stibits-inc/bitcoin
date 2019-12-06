@@ -7,6 +7,7 @@
  for now : 
     - hd addresses generation from an extended public key
     - get utxos from an extended public key
+    - get transactions from an extended public key
  this list is open and it can grow.
 
 
@@ -16,9 +17,12 @@
 
   the functions list for now contain:
     - 'G' (0x47) : generate address
-    - 'R' (0x52) : Recover wallete
+    - 'R' (0x52) : Recover wallete : get UTXOs
+    - 'T' (0x54) : Recover wallete : get Txs
 
 ## G function detail:
+
+Request structure:
 _____________________________________________________________
     position    :   parameter   :   size    :
 -------------------------------------------------------------
@@ -30,7 +34,7 @@ _____________________________________________________________
  Total                              120
 -------------------------------------------------------------
 
-
+example :
 std::vector<unsigned char> Gpayload(uint32_t from, uint32_t size, std::string xpub) {
     std::vector<unsigned char> v(120);
     v[0] = 'G';
@@ -42,6 +46,8 @@ std::vector<unsigned char> Gpayload(uint32_t from, uint32_t size, std::string xp
 }
 
 ## R function detail:
+
+Request structure:
 _____________________________________________________________
     position    :   parameter   :   size    :
 -------------------------------------------------------------
@@ -51,9 +57,31 @@ _____________________________________________________________
  Total                              112
 -------------------------------------------------------------
 
+example:
 std::vector<unsigned char> Rpayload(std::string xpub) {
     std::vector<unsigned char> v(112);
     v[0] = 'R';
+    memcpy((unsigned char*)(v.data() + 1), xpub.data(), 111);
+    
+    return v;
+}
+
+## T function detail:
+
+Request structure:
+_____________________________________________________________
+    position    :   parameter   :   size    :
+-------------------------------------------------------------
+    0           :   function    :   1       : equal to 'R'(0x52)
+    1           :   xpub        :   111     : the account xpubkey
+-------------------------------------------------------------
+ Total                              112
+-------------------------------------------------------------
+
+example:
+std::vector<unsigned char> Tpayload(std::string xpub) {
+    std::vector<unsigned char> v(112);
+    v[0] = 'T';
     memcpy((unsigned char*)(v.data() + 1), xpub.data(), 111);
     
     return v;
@@ -77,13 +105,6 @@ struct address:
 }
 
 #Response for R message:
-
-    position    :   type        :   size    :
--------------------------------------------------------------
-    0           :   compactInt  :   1..9    : the size of the rest of the reponse (byte count)
-    1..9        :   compactInt  :   1..9    : the number of utxos in this response
-    2..18       :   Utxos[]     :           : utxos array 
--------------------------------------------------------------- 
 
 struct R_Response
 {
