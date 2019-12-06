@@ -59,30 +59,66 @@ std::vector<unsigned char> Rpayload(std::string xpub) {
     return v;
 }
 
-##Response:
+##Responses:
 
-  - first character (x):
-     - if it is lesser than 0xfd
-           it is the size of the rest of the message, that is a json object. and that is start at index 1.
-     - if it is equal to 0xfd
-            the size of the json message is defined in the next tow byte as unsigned short
-            in this case the json message start at the index 3.
-  - the json object starts with '{'
+#Response for G message:
 
-# response example for a 'G' function:
-f{"result":["tb1qyplyx6wfnrtqt7jjxscr9cqme0cf8kh645j6u4","tb1qgtsqak0d3s29d7t433899kc0399z9r4h4sru9a"]}
+struct G_Response
+{
+   compactInt size;                // 	the size of the rest of the reponse (byte count)
+   compactInt addrs_count;         //   the number of addresses in this response
+   address    addrs[addrs_count];  //   addresses array 
+};
+each address has the structure:
+struct address:
+{
+   compactInt length;
+   char       address[length];
+}
 
- 'f' is 0x66 = 102 = the size starting from the '{'
+#Response for R message:
+
+    position    :   type        :   size    :
+-------------------------------------------------------------
+    0           :   compactInt  :   1..9    : the size of the rest of the reponse (byte count)
+    1..9        :   compactInt  :   1..9    : the number of utxos in this response
+    2..18       :   Utxos[]     :           : utxos array 
+-------------------------------------------------------------- 
+
+struct R_Response
+{
+   compactInt size;                // 	the size of the rest of the reponse (byte count)
+   compactInt utxos_count;         //   the number of utxos in this response
+   Utxo    utxos[utxos_count];  //   utxos array 
+};
+
+each Utxo has the structure:
+
+struct Utxo
+{
+    compactInt addr_len;
+    char addr[addr_len];  // the address
+
+    uint256 txhash;
+    int32_t index;  // output index
+
+    int64_t satoshis;
+    compactInt script_size;
+    char script[script_size]; 
+    int blockHeight;
+};
 
 
-# response example for a 'R' function:
-ù{"result":[{"address":"tb1qkg547xcwcl487m3547uq40st4jtyz38twd6sq2","txid":"5271e8feb842a45fb5ab3c2e5602f2c6eab96fb15b045d72c918c310f00587f4","outputIndex":1,"script":"0014b2295f1b0ec7ea7f6e34afb80abe0bac964144eb","satoshis":10184,"height":1571089}]}
+#Response for T message:
 
- 'ù' is 0xf9 = 249 = the size starting from the '{'
+struct T_Response
+{
+   compactInt size;               // 	the size of the rest of the reponse (byte count)
+   compactInt txs_count;          //   the number of txs in this response
+   Tx    txs[txs_count];          //   Txs array 
+};
 
+Tx structure is defined here :
+  https://en.bitcoin.it/wiki/Protocol_documentation#tx
 
-# response example for an unknown function ('K' as example):
-E{"result":{"error":"stib custom command, command id (75) not found"}}
-
- 'E' is 0x45 = 69 = the size starting from the '{'
 

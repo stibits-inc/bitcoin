@@ -753,8 +753,18 @@ bool GetAddressesUtxos(std::vector<std::pair<uint160, int>> &addresses, CDataStr
     count += unspentOutputs.size();
 
     for (auto it=unspentOutputs.begin(); it!=unspentOutputs.end(); it++) {
+
+        std::string address;
         
-        ss << *it;
+        if (!HashTypeToAddress(it->first.hashBytes, it->first.type, address)) {
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Unknown address type");
+        }
+        ss << address;
+                
+        it->first.txhash.Serialize(ss);
+        ser_writedata32(ss, it->first.index);
+        
+        ss << it->second;
     }
 
     return unspentOutputs.size() > 0;
