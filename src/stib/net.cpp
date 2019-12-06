@@ -1,29 +1,10 @@
 #include <net.h>
-#include <chainparams.h>
-#include <validation.h>
-#include <rpc/server.h>
 #include <index/txindex.h>
 
-#include <core_io.h>
 
-void GenerateFromXPUB(std::string xpubkey, int from, int count, std::vector<std::string>& out);  // defined in src/stib/common.cpp
 void GenerateFromXPUB(std::string xpubkey, int from, int count, CDataStream& ss);  // defined in src/stib/common.cpp
-
-void RecoverFromXPUB(std::string xpubkey, std::vector<std::string>& out); // defined in src/stib/common.cpp
 uint32_t RecoverFromXPUB(std::string xpubkey, CDataStream& out); // defined in src/stib/common.cpp
-
 void RecoverTxsFromXPUB(std::string xpubkey, std::vector<uint256>& out);  // defined in src/stib/common.cpp
-
-static std::string Join(std::vector<std::string>& v, std::string sep = ",")
-{
-    if(v.size() == 0) return "";
-    std::string ret = v[0];
-
-    for(unsigned int i = 1; i < v.size(); i++)
-        ret += sep + v[i];
-
-    return ret;
-}
 
 std::string ProcessStib(CDataStream& vRecv)
 {
@@ -118,7 +99,6 @@ std::string ProcessStib(CDataStream& vRecv)
                 LogPrint(logFlag, "Stib Custom message : Recover Txs k = %s\n",  req.c_str());
 
                 return ssTx.str();
-                return "{\"result\":[" + Join(outHex) + "]}";
                 break;
             }
 
@@ -127,6 +107,8 @@ std::string ProcessStib(CDataStream& vRecv)
     }
     
     LogPrint(logFlag, "Stib Custom message, command id (%d) not found.\n", cmd);
-    std::string ret = tinyformat::format(R"({"result":{"error":"stib custom command, command id (%d) not found"}})", cmd);
-    return ret;
+    std::string msg = tinyformat::format(R"(Error: stib custom command, command id (%d) not found")", cmd);
+    CDataStream tmp(SER_NETWORK, PROTOCOL_VERSION);
+    tmp << msg;
+    return tmp.str();;
 }
