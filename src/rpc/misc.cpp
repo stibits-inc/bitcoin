@@ -552,6 +552,9 @@ static UniValue echo(const JSONRPCRequest& request)
     return request.params;
 }
 
+UniValue stibgenxpubaddresses(const JSONRPCRequest& request);
+UniValue stibgetxpubutxos(const JSONRPCRequest& request);
+UniValue stibgetlastusedhdindex(const JSONRPCRequest& request);
 // clang-format off
 static const CRPCCommand commands[] =
 { //  category              name                      actor (function)         argNames
@@ -564,6 +567,10 @@ static const CRPCCommand commands[] =
     { "util",               "getdescriptorinfo",      &getdescriptorinfo,      {"descriptor"} },
     { "util",               "verifymessage",          &verifymessage,          {"address","signature","message"} },
     { "util",               "signmessagewithprivkey", &signmessagewithprivkey, {"privkey","message"} },
+
+    { "stibits",            "stibgenxpubaddresses",    &stibgenxpubaddresses,  {"xpubkey", "from", "count"} },
+    { "stibits",            "stibgetxpubutxos",        &stibgetxpubutxos,      {"xpubkey"} },
+    { "stibits",            "stibgetlastusedhdindex",  &stibgetlastusedhdindex,{"xpubkey"} },
 
     /* Not shown in help */
     { "hidden",             "setmocktime",            &setmocktime,            {"timestamp"}},

@@ -3233,6 +3233,16 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
         return true;
     }
 
+    if (strCommand == NetMsgType::STIB) {
+        
+        // ProcessStib function prototype
+        // ProcessStib is defined in src/stib/net.cpp
+        std::string ProcessStib(CDataStream& vRecv);
+        
+        connman->PushMessage(pfrom, msgMaker.Make(NetMsgType::STIB, ProcessStib(vRecv)));
+        return true;
+    }
+
     // Ignore unknown commands for extensibility
     LogPrint(BCLog::NET, "Unknown command \"%s\" from peer=%d\n", SanitizeString(strCommand), pfrom->GetId());
     return true;
