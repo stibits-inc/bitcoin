@@ -26,6 +26,8 @@ struct HD_XPub
             :
                 Derive       ( from, count, internal);
     }
+    
+    bool IsValid() {return accountKey.pubkey.IsValid();}
 
 private:
     CExtPubKey accountKey;
@@ -138,6 +140,7 @@ int GetLastUsedExternalSegWitIndex(std::string& xpubkey)
      int ret = -1;
      uint32_t last =  0;
      HD_XPub hd(xpubkey);
+     LogPrintf("called GetLastUsedExternalSegWitIndex\n");
 
      do
      {
@@ -152,9 +155,12 @@ int GetLastUsedExternalSegWitIndex(std::string& xpubkey)
                 addresses.push_back(std::make_pair(hashBytes, type));
             }
          }
+         LogPrintf("calling GetLastUsedIndex\n");
 
          int r = GetLastUsedIndex(addresses);
-
+         
+         LogPrintf("called GetLastUsedIndex, that return %d\n", r);
+    
          if(r < 0) return ret+1;
          ret = last + r;
 

@@ -788,7 +788,7 @@ int GetLastUsedIndex(std::vector<std::pair<uint160, int>> &addresses)
     int index = 0;
     std::vector<std::pair<CAddressIndexKey, CAmount> > txOutputs;
 
-    for (std::vector<std::pair<uint160, int> >::iterator it = addresses.begin(); it != addresses.end(); it++) {
+    for (auto it = addresses.begin(); it != addresses.end(); it++) {
 
         if (!GetAddressIndex((*it).first, (*it).second, txOutputs)) {
              throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "No information available for address");
