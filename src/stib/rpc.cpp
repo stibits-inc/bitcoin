@@ -57,7 +57,12 @@ UniValue stibgetlastusedhdindex(const JSONRPCRequest& request)
     }
 
     int r = GetLastUsedExternalSegWitIndex(xpubkey);
-
+    
+    if(r == -1)
+    {
+        throw JSONRPCError(-1, "xpub is missing or invalid!!!");
+    }
+    
     UniValue obj(UniValue::VOBJ);
     obj.pushKV("lastindex", r);
 

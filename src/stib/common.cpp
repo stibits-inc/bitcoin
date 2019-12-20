@@ -140,7 +140,8 @@ int GetLastUsedExternalSegWitIndex(std::string& xpubkey)
      int ret = -1;
      uint32_t last =  0;
      HD_XPub hd(xpubkey);
-     LogPrintf("called GetLastUsedExternalSegWitIndex\n");
+     
+     if(!hd.IsValid()) return ret;
 
      do
      {
