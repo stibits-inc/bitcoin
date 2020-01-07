@@ -168,9 +168,9 @@ void Interrupt()
     if (g_txindex) {
         g_txindex->Interrupt();
     }
-    if (g_addressindex) {
-        g_addressindex->Interrupt();
-    }
+    //if (g_addressindex) {
+     //   g_addressindex->Interrupt();
+    //}
     ForEachBlockFilterIndex([](BlockFilterIndex& index) { index.Interrupt(); });
 }
 
@@ -203,7 +203,7 @@ void Shutdown(InitInterfaces& interfaces)
     if (peerLogic) UnregisterValidationInterface(peerLogic.get());
     if (g_connman) g_connman->Stop();
     if (g_txindex) g_txindex->Stop();
-    if (g_addressindex) g_addressindex->Stop();
+    //if (g_addressindex) g_addressindex->Stop();
     ForEachBlockFilterIndex([](BlockFilterIndex& index) { index.Stop(); });
 
     StopTorControl();
@@ -219,7 +219,7 @@ void Shutdown(InitInterfaces& interfaces)
     g_connman.reset();
     g_banman.reset();
     g_txindex.reset();
-    g_addressindex.reset();
+    //g_addressindex.reset();
     DestroyAllBlockFilterIndexes();
 
     if (::mempool.IsLoaded() && gArgs.GetArg("-persistmempool", DEFAULT_PERSIST_MEMPOOL)) {
@@ -1674,10 +1674,11 @@ bool AppInitMain(InitInterfaces& interfaces)
         g_txindex = MakeUnique<TxIndex>(nTxIndexCache, false, fReindex);
         g_txindex->Start();
     }
-        
-   if (gArgs.GetBoolArg("-addressindex", 0)) {
-        g_addressindex = MakeUnique<AddressIndex>(nAddressIndexCache, false, fReindex);
-        g_addressindex->Start();
+    
+    bool fReindexAddresses = gArgs.GetBoolArg("-reindex-chainstate", 0) || gArgs.GetBoolArg("-reindex", 0);
+    if (gArgs.GetBoolArg("-addressindex", 0)) {
+        g_addressindex = MakeUnique<CAddressIndex>(nAddressIndexCache, false, fReindexAddresses);
+        //g_addressindex->Start();
    }
 
     for (const auto& filter_type : g_enabled_filter_types) {

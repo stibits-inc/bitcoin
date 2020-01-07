@@ -77,7 +77,6 @@ std::string ProcessStib(CDataStream& vRecv)
                 
                 std::string req = vRecv.str();
                 std::vector<uint256> out;
-                std::vector<std::string> outHex;
                 RecoverTxsFromXPUB(req, out);
                 
                 CDataStream ssTx(SER_NETWORK, PROTOCOL_VERSION);

@@ -30,6 +30,7 @@
 #include <script/sigcache.h>
 #include <script/standard.h>
 #include <shutdown.h>
+#include <stib/index/addressindex.h>
 #include <timedata.h>
 #include <tinyformat.h>
 #include <txdb.h>
@@ -1684,6 +1685,9 @@ int ApplyTxInUndo(Coin&& undo, CCoinsViewCache& view, const COutPoint& out)
     return fClean ? DISCONNECT_OK : DISCONNECT_UNCLEAN;
 }
 
+bool IsPayToPublicKeyHash(const CScript& sc);
+bool IsPayToPublicKey(const CScript& sc);
+
 /** Undo the effects of this block (with given index) on the UTXO set represented by coins.
  *  When FAILED is returned, view is left in an indeterminate state. */
 DisconnectResult CChainState::DisconnectBlock(const CBlock& block, const CBlockIndex* pindex, CCoinsViewCache& view)
@@ -1701,15 +1705,52 @@ DisconnectResult CChainState::DisconnectBlock(const CBlock& block, const CBlockI
         return DISCONNECT_FAILED;
     }
 
+    std::vector<std::pair<CAddressIndexKey, CAmount> > addressIndex;
+    std::vector<std::pair<CAddressUnspentKey, CAddressUnspentValue> > addressUnspentIndex;
+
+    if (g_addressindex)
+    {
+        g_addressindex->Begin();
+    }
+    
     // undo transactions in reverse order
     for (int i = block.vtx.size() - 1; i >= 0; i--) {
         const CTransaction &tx = *(block.vtx[i]);
         uint256 hash = tx.GetHash();
         bool is_coinbase = tx.IsCoinBase();
 
+       if (g_addressindex) {
+            for (unsigned int k = tx.vout.size(); k-- > 0;) {
+                const CTxOut &out = tx.vout[k];
+                
+                std::vector<std::vector<unsigned char>> vSolutionsRet;
+                txnouttype type = Solver(out.scriptPubKey, vSolutionsRet);
+                switch(type)
+                {
+                    case TX_WITNESS_V0_KEYHASH:
+                    case TX_SCRIPTHASH:
+                    case TX_PUBKEYHASH:
+                        {
+                            assert(vSolutionsRet.size() == 1);
+                            uint160 hashBytes(vSolutionsRet[0]);
+                            
+                            g_addressindex->Erase(CAddressIndexKey(type, hashBytes, pindex->nHeight, i, hash, k, false));
+                            g_addressindex->Erase(CAddressUnspentKey(type, hashBytes, hash, k));
+                            
+                            break;
+                        }
+                    case TX_PUBKEY:
+                    default:
+                        break;
+                };
+
+            }
+        }
+        
         // Check that all outputs are available and match the outputs in the block itself
         // exactly.
         for (size_t o = 0; o < tx.vout.size(); o++) {
+            
             if (!tx.vout[o].scriptPubKey.IsUnspendable()) {
                 COutPoint out(hash, o);
                 Coin coin;
@@ -1718,6 +1759,7 @@ DisconnectResult CChainState::DisconnectBlock(const CBlock& block, const CBlockI
                     fClean = false; // transaction output mismatch
                 }
             }
+            
         }
 
         // restore inputs
@@ -1729,9 +1771,49 @@ DisconnectResult CChainState::DisconnectBlock(const CBlock& block, const CBlockI
             }
             for (unsigned int j = tx.vin.size(); j-- > 0;) {
                 const COutPoint &out = tx.vin[j].prevout;
+                int undoHeight = txundo.vprevout[j].nHeight;
                 int res = ApplyTxInUndo(std::move(txundo.vprevout[j]), view, out);
                 if (res == DISCONNECT_FAILED) return DISCONNECT_FAILED;
                 fClean = fClean && res != DISCONNECT_UNCLEAN;
+                
+                const CTxIn input = tx.vin[j];
+                
+                if(g_addressindex)
+                {
+                    const Coin &coin = view.AccessCoin(tx.vin[j].prevout);
+                    const CTxOut &prevout = coin.out;
+                    
+                    std::vector<std::vector<unsigned char>> vSolutionsRet;
+                    txnouttype type = Solver(prevout.scriptPubKey, vSolutionsRet);
+                    
+                    switch(type)
+                    {
+                        case TX_WITNESS_V0_KEYHASH:
+                        case TX_SCRIPTHASH:
+                        case TX_PUBKEYHASH:
+                            {
+                                assert(vSolutionsRet.size() == 1);
+                                uint160 hashBytes(vSolutionsRet[0]);
+                                
+                                g_addressindex->Erase(CAddressIndexKey(type, hashBytes, pindex->nHeight, i, hash, j, true));
+                                g_addressindex->Write(CAddressUnspentKey(type, hashBytes, input.prevout.hash, input.prevout.n), CAddressUnspentValue(prevout.nValue, prevout.scriptPubKey, undoHeight));
+                                
+                                break;
+                            }
+                        case TX_PUBKEY:
+                            /*{
+                            assert(vSolutionsRet.size() == 1);
+                            uint160 hashBytes(vSolutionsRet[0]);
+                            
+                            g_addressindex->Erase(CAddressIndexKey(type, hashBytes, pindex->nHeight, i, hash, j, false));
+                            g_addressindex->Erase(CAddressUnspentKey(type, hashBytes, input.prevout.hash, input.prevout.n));
+                            
+                            break;
+                            }*/
+                        default:
+                            break;
+                    };
+                }
             }
             // At this point, all of txundo.vprevout should have been moved out.
         }
@@ -1740,6 +1822,13 @@ DisconnectResult CChainState::DisconnectBlock(const CBlock& block, const CBlockI
     // move best block pointer to prevout block
     view.SetBestBlock(pindex->pprev->GetBlockHash());
 
+    if (g_addressindex) {
+        if(!g_addressindex->Commit()){
+            error( "Failed either, to delete address index, or to to write address unspent index");
+            return DISCONNECT_FAILED;
+        }
+    }
+    
     return fClean ? DISCONNECT_OK : DISCONNECT_UNCLEAN;
 }
 
@@ -2091,9 +2180,19 @@ bool CChainState::ConnectBlock(const CBlock& block, CValidationState& state, CBl
     blockundo.vtxundo.reserve(block.vtx.size() - 1);
     std::vector<PrecomputedTransactionData> txdata;
     txdata.reserve(block.vtx.size()); // Required so that pointers to individual PrecomputedTransactionData don't get invalidated
+    
+    std::vector<std::pair<CAddressIndexKey, CAmount> > addressIndex;
+    std::vector<std::pair<CAddressUnspentKey, CAddressUnspentValue> > addressUnspentIndex;
+    
+    if (g_addressindex)
+    {
+        g_addressindex->Begin();
+    }
+    
     for (unsigned int i = 0; i < block.vtx.size(); i++)
     {
         const CTransaction &tx = *(block.vtx[i]);
+        const uint256 txhash = tx.GetHash();
 
         nInputs += tx.vin.size();
 
@@ -2128,6 +2227,73 @@ bool CChainState::ConnectBlock(const CBlock& block, CValidationState& state, CBl
             if (!SequenceLocks(tx, nLockTimeFlags, &prevheights, *pindex)) {
                 return state.Invalid(ValidationInvalidReason::CONSENSUS, error("%s: contains a non-BIP68-final transaction", __func__),
                                  REJECT_INVALID, "bad-txns-nonfinal");
+            }
+            
+            if (g_addressindex)
+            {
+                for (size_t j = 0; j < tx.vin.size(); j++) {
+                    const CTxIn input = tx.vin[j];
+                    const Coin& coin = view.AccessCoin(tx.vin[j].prevout);
+                    const CTxOut &prevout = coin.out;
+                    uint160 hashBytes;
+                    
+                    std::vector<std::vector<unsigned char>> vSolutionsRet;
+                    txnouttype type = Solver(prevout.scriptPubKey, vSolutionsRet);
+                    
+                    switch(type)
+                    {
+                        case TX_WITNESS_V0_KEYHASH:
+                        case TX_SCRIPTHASH:
+                        case TX_PUBKEYHASH:
+                            {
+                                assert(vSolutionsRet.size() == 1);
+                                uint160 hashBytes(vSolutionsRet[0]);
+                                
+                                // record spending activity
+                                g_addressindex->Write(CAddressIndexKey(type , hashBytes, pindex->nHeight, i, txhash, j, true), prevout.nValue * -1);
+                                
+                                // remove address from unspent index
+                                g_addressindex->Erase(CAddressUnspentKey(type, hashBytes, input.prevout.hash, input.prevout.n));
+                                 
+                                break;
+                            }
+                        case TX_PUBKEY:
+                        default:
+                            break;
+                    };
+
+                }
+            }
+        }
+
+        if (g_addressindex) {
+            for (unsigned int k = 0; k < tx.vout.size(); k++) {
+                const CTxOut &out = tx.vout[k];
+                
+                std::vector<std::vector<unsigned char>> vSolutionsRet;
+                txnouttype type = Solver(out.scriptPubKey, vSolutionsRet);
+                
+                switch(type)
+                {
+                    case TX_WITNESS_V0_KEYHASH:
+                    case TX_SCRIPTHASH:
+                    case TX_PUBKEYHASH:
+                        {
+                            assert(vSolutionsRet.size() == 1);
+                            uint160 hashBytes(vSolutionsRet[0]);
+                            
+                            // record spending activity
+                            g_addressindex->Write(CAddressIndexKey(type, hashBytes, pindex->nHeight, i, txhash, k, false), out.nValue);
+                            
+                            // add address to the unspent index
+                            g_addressindex->Write(CAddressUnspentKey(type, hashBytes, txhash, k), CAddressUnspentValue(out.nValue, out.scriptPubKey, pindex->nHeight));
+                             
+                            break;
+                        }
+                    case TX_PUBKEY:
+                    default:
+                        break;
+                };
             }
         }
 
@@ -2194,6 +2360,14 @@ bool CChainState::ConnectBlock(const CBlock& block, CValidationState& state, CBl
         setDirtyBlockIndex.insert(pindex);
     }
 
+    if (g_addressindex) {
+        
+        if(!g_addressindex->Commit()){
+            error( "Failed either, to write address index, or to write address unspent index");
+            return DISCONNECT_FAILED;
+        }
+    }
+    
     assert(pindex->phashBlock);
     // add this block to the view's block chain
     view.SetBestBlock(pindex->GetBlockHash());

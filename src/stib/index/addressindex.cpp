@@ -11,277 +11,32 @@
 constexpr char DB_ADDRESSINDEX = 'a';
 constexpr char DB_ADDRESSUNSPENTINDEX = 'u';
 
-std::unique_ptr<AddressIndex> g_addressindex;
+std::unique_ptr<CAddressIndex> g_addressindex;
 
-struct CDiskTxPos : public FlatFilePos
-{
-    unsigned int nTxOffset; // after header
 
-    ADD_SERIALIZE_METHODS;
-
-    template <typename Stream, typename Operation>
-    inline void SerializationOp(Stream& s, Operation ser_action) {
-        READWRITEAS(FlatFilePos, *this);
-        READWRITE(VARINT(nTxOffset));
-    }
-
-    CDiskTxPos(const FlatFilePos &blockIn, unsigned int nTxOffsetIn) : FlatFilePos(blockIn.nFile, blockIn.nPos), nTxOffset(nTxOffsetIn) {
-    }
-
-    CDiskTxPos() {
-        SetNull();
-    }
-
-    void SetNull() {
-        FlatFilePos::SetNull();
-        nTxOffset = 0;
-    }
-};
-
-struct CAddressUnspentKey {
-    unsigned int type;
-    uint160 hashBytes;
-    uint256 txhash;
-    size_t index;
-
-    size_t GetSerializeSize() const {
-        return 57 ;
-    }
-    template<typename Stream>
-    void Serialize(Stream& s) const {
-        ser_writedata8(s, type);
-        hashBytes.Serialize(s);
-        txhash.Serialize(s);
-        ser_writedata32(s, index);
-    }
-    template<typename Stream>
-    void Unserialize(Stream& s) {
-        type = ser_readdata8(s);
-        hashBytes.Unserialize(s);
-        txhash.Unserialize(s);
-        index = ser_readdata32(s);
-    }
-
-    CAddressUnspentKey(unsigned int addressType, uint160 addressHash, uint256 txid, size_t indexValue) {
-        type = addressType;
-        hashBytes = addressHash;
-        txhash = txid;
-        index = indexValue;
-    }
-    
-    std::string ToString()
-    {
-        
-        std::stringstream ss;
-        Serialize(ss);
-        return HexStr(ss.str());
-    }
-
-    CAddressUnspentKey() {
-        SetNull();
-    }
-
-    void SetNull() {
-        type = 0;
-        hashBytes.SetNull();
-        txhash.SetNull();
-        index = 0;
-    }
-};
-
-struct CAddressUnspentValue {
-    CAmount satoshis;
-    CScript script;
-    int blockHeight;
-
-    ADD_SERIALIZE_METHODS;
-
-    template <typename Stream, typename Operation>
-    inline void SerializationOp(Stream& s, Operation ser_action) {
-        READWRITE(satoshis);
-        READWRITE(*(CScriptBase*)(&script));
-        READWRITE(blockHeight);
-    }
-
-    CAddressUnspentValue(CAmount sats, CScript scriptPubKey, int height) {
-        satoshis = sats;
-        script = scriptPubKey;
-        blockHeight = height;
-    }
-
-    CAddressUnspentValue() {
-        SetNull();
-    }
-
-    void SetNull() {
-        satoshis = -1;
-        script.clear();
-        blockHeight = 0;
-    }
-
-    bool IsNull() const {
-        return (satoshis == -1);
-    }
-};
-
-struct CAddressIndexKey {
-    unsigned int type;
-    uint160 hashBytes;
-    int blockHeight;
-    unsigned int txindex;
-    uint256 txhash;
-    size_t index;
-    bool spending;
-
-    size_t GetSerializeSize() const {
-        return 34;
-    }
-    template<typename Stream>
-    void Serialize(Stream& s) const {
-        ser_writedata8(s, type);
-        hashBytes.Serialize(s);
-        // Heights are stored big-endian for key sorting in LevelDB
-        ser_writedata32be(s, blockHeight);
-        ser_writedata32be(s, txindex);
-        txhash.Serialize(s);
-        ser_writedata32(s, index);
-        char f = spending;
-        ser_writedata8(s, f);
-    }
-    template<typename Stream>
-    void Unserialize(Stream& s) {
-        type = ser_readdata8(s);
-        hashBytes.Unserialize(s);
-        blockHeight = ser_readdata32be(s);
-        txindex = ser_readdata32be(s);
-        txhash.Unserialize(s);
-        index = ser_readdata32(s);
-        char f = ser_readdata8(s);
-        spending = f;
-    }
-
-    CAddressIndexKey(unsigned int addressType, uint160 addressHash, int height, int blockindex,
-                     uint256 txid, size_t indexValue, bool isSpending) {
-        type = addressType;
-        hashBytes = addressHash;
-        blockHeight = height;
-        txindex = blockindex;
-        txhash = txid;
-        index = indexValue;
-        spending = isSpending;
-    }
-
-    CAddressIndexKey() {
-        SetNull();
-    }
-
-    void SetNull() {
-        type = 0;
-        hashBytes.SetNull();
-        blockHeight = 0;
-        txindex = 0;
-        txhash.SetNull();
-        index = 0;
-        spending = false;
-    }
-
-};
-
-struct CAddressIndexIteratorKey {
-    unsigned int type;
-    uint160 hashBytes;
+CAddressIndex::CAddressIndex(size_t nCacheSize, bool fMemory, bool fWipe)
+ : CDBWrapper( GetDataDir() / "indexes" / "addressindex", nCacheSize, fMemory, fWipe), batch(*this) {
+}
 /*
-    size_t GetSerializeSize() const {
-        return 21;
-    }*/
-    template<typename Stream>
-    void Serialize(Stream& s) const {
-        ser_writedata8(s, type);
-        hashBytes.Serialize(s);
-    }
-    template<typename Stream>
-    void Unserialize(Stream& s) {
-        type = ser_readdata8(s);
-        hashBytes.Unserialize(s);
-    }
-
-    CAddressIndexIteratorKey(unsigned int addressType, uint160 addressHash) {
-        type = addressType;
-        hashBytes = addressHash;
-    }
-    
-    std::string ToString()
-    {
-        
-        std::stringstream ss;
-        Serialize(ss);
-        //std::string r = ss;
-        return HexStr(ss.str());
-    }
-
-    CAddressIndexIteratorKey() {
-        SetNull();
-    }
-
-    void SetNull() {
-        type = 0;
-        hashBytes.SetNull();
-    }
-};
-
-/**
- * Access to the txindex database (indexes/txindex/)
- *
- * The database stores a block locator of the chain the database is synced to
- * so that the TxIndex can efficiently determine the point it last stopped at.
- * A locator is used instead of a simple hash of the chain tip because blocks
- * and block index entries may not be flushed to disk until after this database
- * is updated.
- */
-class AddressIndex::DB : public BaseIndex::DB
+bool CAddressIndex::UpdateAddressUnspentIndex(const std::vector<std::pair<CAddressUnspentKey, CAddressUnspentValue > >&vect)
 {
-public:
-    explicit DB(size_t n_cache_size, bool f_memory = false, bool f_wipe = false);
-
-    /// Read the disk location of the transaction data with the given hash. Returns false if the
-    /// transaction hash is not indexed.
-    bool ReadUnspentIndex(uint160 addressHash, int addressType,
-                                           std::vector<std::pair<CAddressUnspentKey, CAddressUnspentValue> > &ounspentOutputs);
-
-    /// Write a batch of transaction positions to the DB.
-    bool WriteUnspentIndexs(const std::vector<std::pair<CAddressUnspentKey, CAddressUnspentValue > >&vect) ;
-
-    /// Delete a batch of transaction positions from the DB.
-    bool DeleteUnspentIndexs(const std::vector<CAddressUnspentKey>&vect) ;
-    
-
-    /// Read the disk location of the transaction data with the given hash. Returns false if the
-    /// transaction hash is not indexed.
-    bool ReadIndex(uint160 addressHash, int addressType,
-                                           std::vector<std::pair<CAddressIndexKey, CAmount> > &utputs);
-
-    /// Write a batch of indexes to the DB.
-    bool WriteIndexs(const std::vector<std::pair<CAddressIndexKey, CAmount > >&vect) ;
-    
-    
-    /// write two batches of transaction and delete one
-    bool WriteWriteDelete(
-        const std::vector<std::pair<CAddressUnspentKey, CAddressUnspentValue > >&wuout,
-        const std::vector<std::pair<CAddressIndexKey, CAmount > >&wout,
-        const std::vector<CAddressUnspentKey>&duout
-    );
-};
-
-AddressIndex::DB::DB(size_t n_cache_size, bool f_memory, bool f_wipe) :
-    BaseIndex::DB(GetDataDir() / "indexes" / "addressindex", n_cache_size, f_memory, f_wipe)
-{}
-
-bool AddressIndex::DB::ReadUnspentIndex(uint160 addressHash, int addressType,
-                                           std::vector<std::pair<CAddressUnspentKey, CAddressUnspentValue> > &unspentOutputs)
+    CDBBatch batch(*this);
+    for (std::vector<std::pair<CAddressUnspentKey, CAddressUnspentValue> >::const_iterator it=vect.begin(); it!=vect.end(); it++) {
+        if (it->second.IsNull()) {
+            batch.Erase(std::make_pair(DB_ADDRESSUNSPENTINDEX, it->first));
+        } else {
+            batch.Write(std::make_pair(DB_ADDRESSUNSPENTINDEX, it->first), it->second);
+        }
+    }
+    return WriteBatch(batch);
+}
+*/
+bool CAddressIndex::ReadAddressUnspentIndex(uint160 addressHash, int type, std::vector<std::pair<CAddressUnspentKey, CAddressUnspentValue> > &vect)
 {
+
     std::unique_ptr<CDBIterator> pcursor(NewIterator());
 
-    pcursor->Seek(std::make_pair(DB_ADDRESSUNSPENTINDEX, CAddressIndexIteratorKey(addressType, addressHash)));
+    pcursor->Seek(std::make_pair(DB_ADDRESSUNSPENTINDEX, CAddressIndexIteratorKey(type, addressHash)));
 
     while (pcursor->Valid()) {
         boost::this_thread::interruption_point();
@@ -289,7 +44,7 @@ bool AddressIndex::DB::ReadUnspentIndex(uint160 addressHash, int addressType,
         if (pcursor->GetKey(key) && key.first == DB_ADDRESSUNSPENTINDEX && key.second.hashBytes == addressHash) {
             CAddressUnspentValue nValue;
             if (pcursor->GetValue(nValue)) {
-                unspentOutputs.push_back(std::make_pair(key.second, nValue));
+                vect.push_back(std::make_pair(key.second, nValue));
                 pcursor->Next();
             } else {
                 return error("failed to get address unspent value");
@@ -302,45 +57,27 @@ bool AddressIndex::DB::ReadUnspentIndex(uint160 addressHash, int addressType,
     return true;
 }
 
-bool AddressIndex::DB::WriteUnspentIndexs(const std::vector<std::pair<CAddressUnspentKey, CAddressUnspentValue > >&vect) {
-    CDBBatch batch(*this);
-    for (auto it=vect.begin(); it!=vect.end(); it++) {
-        if (it->second.IsNull()) {
-            batch.Erase(std::make_pair(DB_ADDRESSUNSPENTINDEX, it->first));
-        } else {
-            batch.Write(std::make_pair(DB_ADDRESSUNSPENTINDEX, it->first), it->second);
-        }
-    }
-    
-    return WriteBatch(batch);
-}
 
-bool AddressIndex::DB::DeleteUnspentIndexs(const std::vector<CAddressUnspentKey>&vect)
+bool CAddressIndex::ReadAddressIndex(uint160 addressHash, int type, std::vector<std::pair<CAddressIndexKey, CAmount> > &addressIndex, unsigned int start, unsigned int end)
 {
-    CDBBatch batch(*this);
-    for (auto it=vect.begin(); it!=vect.end(); it++) {
-           batch.Erase(std::make_pair(DB_ADDRESSUNSPENTINDEX, *it));
-    }
-    
-    return WriteBatch(batch);
-}
 
-bool AddressIndex::DB::ReadIndex(uint160 addressHash, int addressType, std::vector<std::pair<CAddressIndexKey, CAmount> > &outputs)
-{
     std::unique_ptr<CDBIterator> pcursor(NewIterator());
 
-    pcursor->Seek(std::make_pair(DB_ADDRESSINDEX, CAddressIndexIteratorKey(addressType, addressHash)));
-
+    pcursor->Seek(std::make_pair(DB_ADDRESSINDEX, CAddressIndexIteratorKey(type, addressHash)));
+    
     while (pcursor->Valid()) {
         boost::this_thread::interruption_point();
         std::pair<char,CAddressIndexKey> key;
         if (pcursor->GetKey(key) && key.first == DB_ADDRESSINDEX && key.second.hashBytes == addressHash) {
+            if (end > 0 && ((unsigned int)key.second.blockHeight) > end) {
+                break;
+            }
             CAmount nValue;
             if (pcursor->GetValue(nValue)) {
-                outputs.push_back(std::make_pair(key.second, nValue));
+                addressIndex.push_back(std::make_pair(key.second, nValue));
                 pcursor->Next();
             } else {
-                return error("failed to get address unspent value");
+                return error("failed to get address index value");
             }
         } else {
             break;
@@ -350,223 +87,127 @@ bool AddressIndex::DB::ReadIndex(uint160 addressHash, int addressType, std::vect
     return true;
 }
 
-bool AddressIndex::DB::WriteIndexs(const std::vector<std::pair<CAddressIndexKey, CAmount > >&vect)
+void CAddressIndex::Clear()
 {
-    CDBBatch batch(*this);
-    for (auto it=vect.begin(); it!=vect.end(); it++) {
-        batch.Write(std::make_pair(DB_ADDRESSINDEX, it->first), it->second);
-    }
-    
-    return WriteBatch(batch);
+    batch.Clear();
 }
 
-bool AddressIndex::DB::WriteWriteDelete(
-        const std::vector<std::pair<CAddressUnspentKey, CAddressUnspentValue > >&wuout,
-        const std::vector<std::pair<CAddressIndexKey, CAmount > >&wout,
-        const std::vector<CAddressUnspentKey>&duout
-        )
+void CAddressIndex::Begin()
 {
-    CDBBatch batch(*this);
-    for (auto it=wuout.begin(); it!=wuout.end(); it++) {
-        if (it->second.IsNull()) {
-            batch.Erase(std::make_pair(DB_ADDRESSUNSPENTINDEX, it->first));
-        } else {
-            batch.Write(std::make_pair(DB_ADDRESSUNSPENTINDEX, it->first), it->second);
-        }
-    }
-
-    for (auto it=wout.begin(); it!=wout.end(); it++) {
-        batch.Write(std::make_pair(DB_ADDRESSINDEX, it->first), it->second);
-    }
-
-    for (auto it=duout.begin(); it!=duout.end(); it++) {
-           batch.Erase(std::make_pair(DB_ADDRESSUNSPENTINDEX, *it));
-    }
-    
-    return WriteBatch(batch);
+    batch.Clear();
+    //Clear();
 }
 
-bool AddressIndex::Init()
+bool CAddressIndex::Commit()
 {
-    return BaseIndex::Init();
-}
+    /*CDBBatch batch(*this);
 
-typedef std::vector<unsigned char> valtype;
-
-bool AddressIndex::WriteBlock(const CBlock& block, const CBlockIndex* pindex) 
-{
-    // Exclude genesis block transaction because outputs are not spendable.
-    if (pindex->nHeight == 0) return true;
+    for (auto& a: aToErase)
+        batch.Erase(std::make_pair(DB_ADDRESSINDEX, a));
     
-    std::vector<std::pair<CAddressIndexKey, CAmount>> list_to_add;
-    std::vector<std::pair<CAddressUnspentKey, CAddressUnspentValue>> list_unspent_to_add;
-    std::vector<CAddressUnspentKey> list_to_remove;
-
-    CDiskTxPos pos(pindex->GetBlockPos(), GetSizeOfCompactSize(block.vtx.size()));
-    std::vector<std::pair<uint256, CDiskTxPos>> vPos;
-    vPos.reserve(block.vtx.size());
-    int txindex = 0;
-    for (const auto& tx : block.vtx) {
-        CAddressUnspentKey   addrunspentkey;
-        CAddressUnspentValue addrval;
-        CAddressIndexKey     addrkey;
-        CAmount              amount;
-        
-        addrunspentkey.txhash = tx -> GetHash();
-        addrkey.txhash        = tx -> GetHash();
-        addrkey.txindex       = txindex++;
-        
-        addrkey.blockHeight   = pindex->nHeight;
-        
-        // add each spendable unspent output in this transaction (*tx)
-        //  to the index
-        int voutindex = 0;
-        for(const CTxOut& o : tx->vout)
-        {
-            if(o.scriptPubKey.IsUnspendable()) continue;
-            
-            addrkey.index        = voutindex;            // index of this utxo in the txout table
-            addrunspentkey.index = voutindex++;          // index of this utxo in the txout table
-            
-            addrval.satoshis     = o.nValue;
-            addrval.blockHeight  = pindex->nHeight;
-            addrval.script       = o.scriptPubKey;
-            
-            amount               = o.nValue;
-            
-            std::vector<std::vector<unsigned char>> vSolutions;
-            
-            txnouttype whichType = Solver(o.scriptPubKey, vSolutions);
-            
-            if (whichType == TX_PUBKEYHASH || whichType == TX_SCRIPTHASH || whichType == TX_WITNESS_V0_KEYHASH)
-            {
-                addrunspentkey.hashBytes = uint160(vSolutions[0]);
-                addrunspentkey.type      = whichType;
-                
-                addrkey.hashBytes = uint160(vSolutions[0]);
-                addrkey.type         = whichType;
-                
-                list_to_add.push_back(std::make_pair(addrkey, amount));
-
-                list_unspent_to_add.push_back(std::make_pair(addrunspentkey, addrval));
-            }
-        }
-         
-        // then
-        // for each input
-        //   remove from the index, the old output consumed by this input
-        
-        for(const CTxIn& xin : tx->vin )
-        {
-            addrunspentkey.txhash = xin.prevout.hash;
-            addrunspentkey.index  = xin.prevout.n;
-            
-            //  get the txout by txhash and index (using txindex)
-            //  then use it for address hshbytes and type extraction
-            
-            uint256 block_hash;
-            CTransactionRef tx_in;
-            if(!g_txindex->FindTx(addrunspentkey.txhash, block_hash, tx_in))
-            {
-                //  TODO LogPrintf("ERROR Getting txin's txout\n");
-                continue;
-            }
-            
-            std::vector<std::vector<unsigned char>> vSolutions;
-            
-            txnouttype whichType = Solver(tx_in->vout[addrunspentkey.index].scriptPubKey, vSolutions);
-            if (whichType == TX_PUBKEYHASH || whichType == TX_SCRIPTHASH || whichType == TX_WITNESS_V0_KEYHASH)
-            {
-                addrunspentkey.hashBytes = uint160(vSolutions[0]);
-                addrunspentkey.type   = whichType;
-                
-            }
-            else
-            {
-                continue;
-            }
-            
-            list_to_remove.push_back(addrunspentkey);
-        }
-    }
+    for (auto& u: uToErase)
+        batch.Erase(std::make_pair(DB_ADDRESSUNSPENTINDEX, u));
     
-    return m_db->WriteWriteDelete(list_unspent_to_add, list_to_add, list_to_remove);
+    for (auto& a: aToWrite)
+        batch.Write(std::make_pair(DB_ADDRESSINDEX, a.first), a.second);
     
-    /*
-    if(! m_db->WriteUnspentIndexs(list_unspent_to_add))
-        return false;
-    
-    if(! m_db->WriteIndexs(list_to_add))
-        return false;
-    
-    return m_db->DeleteUnspentIndexs(list_to_remove);
+    for (auto& u: uToWrite)
+        batch.Write(std::make_pair(DB_ADDRESSUNSPENTINDEX, u.first), u.second);
     */
+    return WriteBatch(batch);
 }
 
-BaseIndex::DB& AddressIndex::GetDB() const { return *m_db; }
-
-
-AddressIndex::AddressIndex(size_t n_cache_size, bool f_memory, bool f_wipe)
-    : m_db(MakeUnique<AddressIndex::DB>(n_cache_size, f_memory, f_wipe))
-{}
-
-AddressIndex::~AddressIndex() {}
-
-bool AddressIndex::GetAddressUnspent(uint160 addressHash, int type, std::vector<std::pair<CAddressUnspentKey, CAddressUnspentValue> > &unspentOutputs )
+void CAddressIndex::Write(CAddressIndexKey k, CAmount v)
 {
-
-    if (!m_db->ReadUnspentIndex(addressHash, type, unspentOutputs))
-        return error("unable to get txids for address");
-
-    return true;
+    batch.Write(std::make_pair(DB_ADDRESSINDEX, k), v);
+    //aToWrite.push_back(std::make_pair(k, v));
 }
 
-bool AddressIndex::GetAddressIndex(uint160 addressHash, int type, std::vector<std::pair<CAddressIndexKey, CAmount> > &addressIndex)
+void CAddressIndex::Erase(CAddressIndexKey k)
 {
-    if (!m_db->ReadIndex(addressHash, type, addressIndex))
-        return error("unable to get txids for address");
-
-    return true;
+    batch.Erase(std::make_pair(DB_ADDRESSINDEX, k));
+    //aToErase.push_back(a);
 }
 
-struct CAddressIndexIteratorHeightKey {
-    unsigned int type;
-    uint160 hashBytes;
-    int blockHeight;
+void CAddressIndex::Write(CAddressUnspentKey k, CAddressUnspentValue v)
+{
+    batch.Write(std::make_pair(DB_ADDRESSUNSPENTINDEX, k), v);
+    //uToWrite.push_back(std::make_pair(k, v));
+}
 
-    size_t GetSerializeSize() const {
-        return 25;
-    }
-    template<typename Stream>
-    void Serialize(Stream& s) const {
-        ser_writedata8(s, type);
-        hashBytes.Serialize(s);
-        ser_writedata32be(s, blockHeight);
-    }
-    template<typename Stream>
-    void Unserialize(Stream& s) {
-        type = ser_readdata8(s);
-        hashBytes.Unserialize(s);
-        blockHeight = ser_readdata32be(s);
-    }
+void CAddressIndex::Erase(CAddressUnspentKey k)
+{
+    batch.Erase(std::make_pair(DB_ADDRESSUNSPENTINDEX, k));
+    //uToErase.push_back(a);
+}
 
-    CAddressIndexIteratorHeightKey(unsigned int addressType, uint160 addressHash, int height) {
-        type = addressType;
-        hashBytes = addressHash;
-        blockHeight = height;
+bool IsPayToPublicKeyHash(const CScript& sc);
+bool IsPayToPublicKey(const CScript& sc);
+
+std::vector<std::pair<CAddressIndexKey, CAmount> > addressIndex;
+std::vector<std::pair<CAddressUnspentKey, CAddressUnspentValue> > addressUnspentIndex;
+
+void AddToIndexes0(const CTxOut &out, const CBlockIndex* pindex, int i, unsigned int k, uint256& hash,
+                  std::vector<std::pair<CAddressIndexKey, CAmount>>& addressIndex,
+                  std::vector<std::pair<CAddressUnspentKey, CAddressUnspentValue>>& addressUnspentIndex
+                  )
+{
+    
+     if (out.scriptPubKey.IsPayToScriptHash()) {
+        std::vector<unsigned char> hashBytes(out.scriptPubKey.begin()+2, out.scriptPubKey.begin()+22);
+
+        // undo receiving activity
+        addressIndex.push_back(std::make_pair(CAddressIndexKey(2, uint160(hashBytes), pindex->nHeight, i, hash, k, false), out.nValue));
+
+        // undo unspent index
+        addressUnspentIndex.push_back(std::make_pair(CAddressUnspentKey(2, uint160(hashBytes), hash, k), CAddressUnspentValue()));
+
+    } else if (IsPayToPublicKeyHash(out.scriptPubKey)) {
+        std::vector<unsigned char> hashBytes(out.scriptPubKey.begin()+3, out.scriptPubKey.begin()+23);
+
+        // undo receiving activity
+        addressIndex.push_back(std::make_pair(CAddressIndexKey(1, uint160(hashBytes), pindex->nHeight, i, hash, k, false), out.nValue));
+
+        // undo unspent index
+        addressUnspentIndex.push_back(std::make_pair(CAddressUnspentKey(1, uint160(hashBytes), hash, k), CAddressUnspentValue()));
+
+    } else if (IsPayToPublicKey(out.scriptPubKey)) {
+        uint160 hashBytes(Hash160(out.scriptPubKey.begin()+1, out.scriptPubKey.end()-1));
+        addressIndex.push_back(std::make_pair(CAddressIndexKey(1, hashBytes, pindex->nHeight, i, hash, k, false), out.nValue));
+        addressUnspentIndex.push_back(std::make_pair(CAddressUnspentKey(1, hashBytes, hash, k), CAddressUnspentValue()));
     }
+    
+}
 
 
-    CAddressIndexIteratorHeightKey() {
-        SetNull();
-    }
+void RmoveFromIndexes(const CTxOut &out, const CBlockIndex* pindex, int tx_index, unsigned int output_index, uint256& hash,
+                  std::vector<std::pair<CAddressIndexKey, CAmount>>& addressIndex,
+                  std::vector<std::pair<CAddressUnspentKey, CAddressUnspentValue>>& addressUnspentIndex
+                  )
+{
+    
+    std::vector<std::vector<unsigned char>> vSolutionsRet;
+    
+    txnouttype type = Solver(out.scriptPubKey, vSolutionsRet);
+    
+    switch(type)
+    {
+        case TX_WITNESS_V0_KEYHASH:
+        case TX_SCRIPTHASH:
+        case TX_PUBKEYHASH:
+        case TX_PUBKEY:
+            {
+            assert(vSolutionsRet.size() == 1);
+            uint160 hashBytes(Hash160(vSolutionsRet[0]));
+            addressIndex.push_back(std::make_pair(CAddressIndexKey(type, hashBytes, pindex->nHeight, tx_index, hash, output_index, false), out.nValue));
+            addressUnspentIndex.push_back(std::make_pair(CAddressUnspentKey(type, hashBytes, hash, output_index), CAddressUnspentValue()));
+            break;
+            }
+        default:
+            break;
+    };
+}
 
-    void SetNull() {
-        type = 0;
-        hashBytes.SetNull();
-        blockHeight = 0;
-    }
-};
 
 // RPC interface
 
@@ -576,7 +217,7 @@ bool GetAddressUnspent(uint160 addressHash, int type,
     if (!g_addressindex)
         return error("address index not enabled");
     
-    if (!g_addressindex->GetAddressUnspent(addressHash, type, unspentOutputs))
+    if (!g_addressindex->ReadAddressUnspentIndex(addressHash, type, unspentOutputs))
         return error("unable to get txids for address");
     
     return true;
@@ -588,61 +229,11 @@ bool GetAddressIndex(uint160 addressHash, int type,
     if (!g_addressindex)
         return error("address index not enabled");
 
-    if (!g_addressindex->GetAddressIndex(addressHash, type, addressIndex))
+    if (!g_addressindex->ReadAddressIndex(addressHash, type, addressIndex))
         return error("unable to get txids for address");
 
     return true;
 }
-
-bool AddressToHashType(std::string addr_str, uint160& hashBytes, int& type)
-{
-    CTxDestination dest = DecodeDestination(addr_str);
-    //typedef boost::variant<CNoDestination, CKeyID, CScriptID, WitnessV0ScriptHash, WitnessV0KeyHash, WitnessUnknown> CTxDestination;
-    switch(dest.which())
-    {
-        case 1: // CKeyID
-        {
-            auto id = boost::get<PKHash>(&dest);
-        
-            if(!id)
-            {
-                return error("unable to decode the address");
-            }
-            
-            memcpy(&hashBytes, id->begin(), 20);
-            type = TX_PUBKEYHASH;
-            break;
-        }
-        
-        case 2: // CScriptID
-        {
-            auto id = boost::get<ScriptHash>(&dest);
-        
-            if(!id)
-            {
-                return error("unable to decode the address");
-            }
-            
-            memcpy(&hashBytes, id->begin(), 20);
-            type = TX_SCRIPTHASH;
-            break;
-        }
-        
-        case 4: // WitnessV0KeyHash
-        {
-            WitnessV0KeyHash w = boost::get<WitnessV0KeyHash>(dest);
-            memcpy(&hashBytes, w.begin(), 20);
-            type = TX_WITNESS_V0_KEYHASH;
-           break;
-        }
-        
-        default :
-            return false;
-    }
-    
-    return true;
-}
-
 
 bool HashTypeToAddress(const uint160 &hash, const int &type, std::string &address)
 {
@@ -710,7 +301,6 @@ bool IsAddressesHasTxs(std::vector<std::pair<uint160, int>> &addresses)
     }
     
     return addressIndex.size() > 0;
-
 }
 
 UniValue GetAddressesUtxos(std::vector<std::pair<uint160, int>> &addresses)
@@ -786,10 +376,9 @@ int GetLastUsedIndex(std::vector<std::pair<uint160, int>> &addresses)
 {
     int r = -1;
     int index = 0;
-    std::vector<std::pair<CAddressIndexKey, CAmount> > txOutputs;
+    std::vector<std::pair<CAddressIndexKey , CAmount> > txOutputs;
 
     for (auto it = addresses.begin(); it != addresses.end(); it++) {
-
         if (!GetAddressIndex((*it).first, (*it).second, txOutputs)) {
              throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "No information available for address");
         }
@@ -798,10 +387,9 @@ int GetLastUsedIndex(std::vector<std::pair<uint160, int>> &addresses)
             r = index;
             txOutputs.clear();
         }
-
-                
         index++;
     }
     
     return r;
 }
+    

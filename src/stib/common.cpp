@@ -133,6 +133,100 @@ static std::vector<uint256>& operator <<(std::vector<uint256>& arr, const std::v
     return arr;
 }
 
+bool IsPayToPublicKeyHash(const CScript& sc)
+{
+    // Extra-fast test for pay-to-pubkey-hash CScripts:
+    return (sc.size() == 25 &&
+            sc[0] == OP_DUP &&
+            sc[1] == OP_HASH160 &&
+            sc[2] == 0x14 &&
+            sc[23] == OP_EQUALVERIFY &&
+            sc[24] == OP_CHECKSIG);
+                
+}
+
+bool IsPayToPublicKey(const CScript& sc)
+{
+    // Test for pay-to-pubkey CScript with both
+    // compressed or uncompressed pubkey
+    if (sc.size() == 35) {
+        return (sc[1] == 0x02 || sc[1] == 0x03) &&
+                sc[34] == OP_CHECKSIG;
+    }
+    if (sc.size() == 67) {
+        return sc[1] == 0x04 &&
+                sc[66] == OP_CHECKSIG;
+    }
+    return false;
+        
+}
+
+
+static bool AddressToHashType(std::string str, uint160& hashBytes, int& type)
+{
+    std::vector<unsigned char> data;
+    const CChainParams &params = Params();
+    uint160 hash;
+    if (DecodeBase58Check(str, data)) {
+        // base58-encoded Bitcoin addresses.
+        // Public-key-hash-addresses have version 0 (or 111 testnet).
+        // The data vector contains RIPEMD160(SHA256(pubkey)), where pubkey is the serialized public key.
+        const std::vector<unsigned char>& pubkey_prefix = params.Base58Prefix(CChainParams::PUBKEY_ADDRESS);
+        if (data.size() == hash.size() + pubkey_prefix.size() && std::equal(pubkey_prefix.begin(), pubkey_prefix.end(), data.begin())) {
+            std::copy(data.begin() + pubkey_prefix.size(), data.end(), hash.begin());
+            hashBytes = PKHash(hash);
+            type = TX_PUBKEYHASH;
+            return true;
+        }
+        // Script-hash-addresses have version 5 (or 196 testnet).
+        // The data vector contains RIPEMD160(SHA256(cscript)), where cscript is the serialized redemption script.
+        const std::vector<unsigned char>& script_prefix = params.Base58Prefix(CChainParams::SCRIPT_ADDRESS);
+        if (data.size() == hash.size() + script_prefix.size() && std::equal(script_prefix.begin(), script_prefix.end(), data.begin())) {
+            std::copy(data.begin() + script_prefix.size(), data.end(), hash.begin());
+            hashBytes = ScriptHash(hash);
+            type = TX_SCRIPTHASH;
+            return true;
+        }
+    }
+    data.clear();
+    auto bech = bech32::Decode(str);
+    if (bech.second.size() > 0 && bech.first == params.Bech32HRP()) {
+        // Bech32 decoding
+        int version = bech.second[0]; // The first 5 bit symbol is the witness version (0-16)
+        // The rest of the symbols are converted witness program bytes.
+        data.reserve(((bech.second.size() - 1) * 5) / 8);
+        if (ConvertBits<5, 8, false>([&](unsigned char c) { data.push_back(c); }, bech.second.begin() + 1, bech.second.end())) {
+            if (version == 0) {
+                {
+                    WitnessV0KeyHash keyid;
+                    if (data.size() == keyid.size()) {
+                        std::copy(data.begin(), data.end(), keyid.begin());
+                        
+                        type = TX_WITNESS_V0_KEYHASH;
+                        hashBytes =  keyid;
+                        return true;
+                    }
+                }
+                /*
+                {
+                    WitnessV0ScriptHash scriptid;
+                    if (data.size() == scriptid.size()) {
+                        std::copy(data.begin(), data.end(), scriptid.begin());
+                        type = TX_WITNESS_V0_SCRIPTHASH;
+                        hashBytes =  scriptid;
+                        return true;
+                    }
+                }
+                */
+                return false;
+            }
+            
+            return false;
+        }
+    }
+    return false;
+}
+
 #define BLOCK_SIZE 100
 
 int GetLastUsedExternalSegWitIndex(std::string& xpubkey)
@@ -260,6 +354,10 @@ uint32_t Recover_(HD_XPub& hd, bool internal, bool segwit, CDataStream& ss)
             int type = 0;
             if (AddressToHashType(a, hashBytes, type)) {
                 addresses.push_back(std::make_pair(hashBytes, type));
+            }
+            else
+            {
+                error("Error when convert from address %s to hash", a);
             }
          }
 
