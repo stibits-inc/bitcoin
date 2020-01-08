@@ -133,35 +133,6 @@ static std::vector<uint256>& operator <<(std::vector<uint256>& arr, const std::v
     return arr;
 }
 
-bool IsPayToPublicKeyHash(const CScript& sc)
-{
-    // Extra-fast test for pay-to-pubkey-hash CScripts:
-    return (sc.size() == 25 &&
-            sc[0] == OP_DUP &&
-            sc[1] == OP_HASH160 &&
-            sc[2] == 0x14 &&
-            sc[23] == OP_EQUALVERIFY &&
-            sc[24] == OP_CHECKSIG);
-                
-}
-
-bool IsPayToPublicKey(const CScript& sc)
-{
-    // Test for pay-to-pubkey CScript with both
-    // compressed or uncompressed pubkey
-    if (sc.size() == 35) {
-        return (sc[1] == 0x02 || sc[1] == 0x03) &&
-                sc[34] == OP_CHECKSIG;
-    }
-    if (sc.size() == 67) {
-        return sc[1] == 0x04 &&
-                sc[66] == OP_CHECKSIG;
-    }
-    return false;
-        
-}
-
-
 static bool AddressToHashType(std::string str, uint160& hashBytes, int& type)
 {
     std::vector<unsigned char> data;

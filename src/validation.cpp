@@ -1801,15 +1801,6 @@ DisconnectResult CChainState::DisconnectBlock(const CBlock& block, const CBlockI
                                 break;
                             }
                         case TX_PUBKEY:
-                            /*{
-                            assert(vSolutionsRet.size() == 1);
-                            uint160 hashBytes(vSolutionsRet[0]);
-                            
-                            g_addressindex->Erase(CAddressIndexKey(type, hashBytes, pindex->nHeight, i, hash, j, false));
-                            g_addressindex->Erase(CAddressUnspentKey(type, hashBytes, input.prevout.hash, input.prevout.n));
-                            
-                            break;
-                            }*/
                         default:
                             break;
                     };
