@@ -1967,6 +1967,14 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
             std::string strSubVer;
             vRecv >> LIMITED_STRING(strSubVer, MAX_SUBVERSION_LENGTH);
             cleanSubVer = SanitizeString(strSubVer);
+            #define STIBITS_USER_AGENT "/STIBITS:"
+            if(pfrom->fInbound  && cleanSubVer.find(STIBITS_USER_AGENT) != 0)
+            {
+                LogPrintf("peer=%d not authorized; disconnecting.\n", pfrom->GetId());
+
+                pfrom->fDisconnect = true;
+                return false;
+            }
         }
         if (!vRecv.empty()) {
             vRecv >> nStartingHeight;
