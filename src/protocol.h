@@ -241,7 +241,7 @@ extern const char *BLOCKTXN;
 /**
  * Stibits custom message
  */
-extern const char *STIB;
+extern const char *STBTS;
 };
 
 /* Get a vector of all valid message types (see above) */

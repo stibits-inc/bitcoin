@@ -553,7 +553,7 @@ static UniValue echo(const JSONRPCRequest& request)
 }
 
 
-UniValue stibgetlastusedhdindex(const JSONRPCRequest& request);
+UniValue stbtsgetlastusedhdindex(const JSONRPCRequest& request);
 // clang-format off
 static const CRPCCommand commands[] =
 { //  category              name                      actor (function)         argNames
@@ -567,7 +567,7 @@ static const CRPCCommand commands[] =
     { "util",               "verifymessage",          &verifymessage,          {"address","signature","message"} },
     { "util",               "signmessagewithprivkey", &signmessagewithprivkey, {"privkey","message"} },
 
-    { "stibits",            "stibgetlastusedhdindex",  &stibgetlastusedhdindex,{"xpubkey"} },
+    { "stibits",            "stbtsgetlastusedhdindex",  &stbtsgetlastusedhdindex,{"xpubkey"} },
 
     /* Not shown in help */
     { "hidden",             "setmocktime",            &setmocktime,            {"timestamp"}},

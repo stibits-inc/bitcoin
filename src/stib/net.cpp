@@ -6,7 +6,7 @@ void GenerateFromXPUB(std::string xpubkey, int from, int count, CDataStream& ss)
 uint32_t RecoverFromXPUB(std::string xpubkey, CDataStream& out); // defined in src/stib/common.cpp
 void RecoverTxsFromXPUB(std::string xpubkey, std::vector<uint256>& out);  // defined in src/stib/common.cpp
 
-std::string ProcessStib(CDataStream& vRecv)
+std::string ProcessStbts(CDataStream& vRecv)
 {
     unsigned char cmd;
     
@@ -14,7 +14,7 @@ std::string ProcessStib(CDataStream& vRecv)
    
     if(vRecv.size() == 0)
     {
-        LogPrintf("Stib Custom message Error.\n");
+        LogPrintf("STBTS Custom message Error.\n");
         return tinyformat::format(R"({"result":{"error":"Empty payload not autorized"}})");
     }
     vRecv.read((char*)&cmd, 1);
@@ -28,7 +28,7 @@ std::string ProcessStib(CDataStream& vRecv)
                 
                 if(vRecv.size() != 119)
                 {
-                    LogPrintf( "Stib Custom message : G, parameters errors.\n");
+                    LogPrintf( "STBTS Custom message : G, parameters errors.\n");
                     return tinyformat::format(R"({"result":{"error":"G command size is 120 byte, not %d"}})", vRecv.size() );
                 }
                 
@@ -36,7 +36,7 @@ std::string ProcessStib(CDataStream& vRecv)
                 vRecv.read((char*)&count, 4);
 
                 std::string req = vRecv.str();
-                LogPrint(logFlag, "Stib Custom message : Gen from = %d, count = %d, k = %s\n", from, count, req.c_str());
+                LogPrint(logFlag, "STBTS Custom message : Gen from = %d, count = %d, k = %s\n", from, count, req.c_str());
 
                 CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
                 GenerateFromXPUB(req, (int)from, (int)count, ss);
@@ -48,11 +48,11 @@ std::string ProcessStib(CDataStream& vRecv)
         case 'R' :
             {
                 std::string req = vRecv.str();
-                LogPrint(logFlag, "Stib Custom message : Recover Utxos k = %s\n",  req.c_str());
+                LogPrint(logFlag, "STBTS Custom message : Recover Utxos k = %s\n",  req.c_str());
                 
                 if(vRecv.size() != 111)
                 {
-                    LogPrintf( "Stib Custom message : R, parameters errors.\n");
+                    LogPrintf( "STBTS Custom message : R, parameters errors.\n");
                     return tinyformat::format(R"({"result":{"error":"R command size is 111 byte, not %d"}})", vRecv.size() );
                 }
                 
@@ -71,7 +71,7 @@ std::string ProcessStib(CDataStream& vRecv)
             {
                 if(!g_txindex)
                 {
-                    LogPrintf("Stib Custom message : T, Error, bitcoind is not started with -txindex option.\n");
+                    LogPrintf("STBTS Custom message : T, Error, bitcoind is not started with -txindex option.\n");
                     return tinyformat::format(R"({"result":{"error":"bitcoind is not started with -txindex option"}})");
                 }
                 
@@ -83,7 +83,7 @@ std::string ProcessStib(CDataStream& vRecv)
                 WriteCompactSize(ssTx, out.size());
       
                 if(out.size())
-                    LogPrint(logFlag, "Stib Custom message : T, %d, Transactions found.\n", out.size());
+                    LogPrint(logFlag, "STBTS Custom message : T, %d, Transactions found.\n", out.size());
 
                 for(auto txhash: out)
                 {
@@ -95,7 +95,7 @@ std::string ProcessStib(CDataStream& vRecv)
                     }
                 }
 
-                LogPrint(logFlag, "Stib Custom message : Recover Txs k = %s\n",  req.c_str());
+                LogPrint(logFlag, "STBTS Custom message : Recover Txs k = %s\n",  req.c_str());
 
                 return ssTx.str();
                 break;
@@ -105,8 +105,8 @@ std::string ProcessStib(CDataStream& vRecv)
                 break;
     }
     
-    LogPrint(logFlag, "Stib Custom message, command id (%d) not found.\n", cmd);
-    std::string msg = tinyformat::format(R"(Error: stib custom command, command id (%d) not found")", cmd);
+    LogPrint(logFlag, "STBTS Custom message, command id (%d) not found.\n", cmd);
+    std::string msg = tinyformat::format(R"(Error: STBTS custom command, command id (%d) not found")", cmd);
     CDataStream tmp(SER_NETWORK, PROTOCOL_VERSION);
     tmp << msg;
     return tmp.str();;
