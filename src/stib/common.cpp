@@ -7,6 +7,7 @@
 #include <script/script.h>
 #include <util/strencodings.h>
 #include <stib/index/addressindex.h>
+#include <limits>
 
 struct HD_XPub
 {
@@ -235,6 +236,43 @@ int GetLastUsedExternalSegWitIndex(std::string& xpubkey)
      } while(true);
 
      return ret;
+}
+
+
+// return 0 when no block found
+// if found, return the blocknumber
+int GetFirstUsedBlock(std::string xpub)
+{
+     int ret = std::numeric_limits<int>::max();
+     uint32_t last =  0;
+     HD_XPub hd(xpub);
+     if(!hd.IsValid()) return -2;
+     do
+     {
+         std::vector<std::string> addrs = hd.Derive(last, BLOCK_SIZE, false, true);
+         std::vector<std::pair<uint160, int> > addresses;
+         
+         for(auto a : addrs)
+         {
+             LogPrintf("%s\n", a.data());
+            uint160 hashBytes;
+            int type = 0;
+            if (AddressToHashType(a, hashBytes, type)) {
+                addresses.push_back(std::make_pair(hashBytes, type));
+            }
+         }
+         
+         int r = GetFirstBlockHeightForAddresses(addresses);
+         
+         if(r == -1) return ret == std::numeric_limits<int>::max() ? -1 : ret;
+         
+         if(r < ret) ret = r;
+         
+         last += BLOCK_SIZE;
+         
+     } while(true);
+     
+     return ret == std::numeric_limits<int>::max() ? -1 : ret;
 }
 
 UniValue Recover_(HD_XPub& hd, bool internal, bool segwit)

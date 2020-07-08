@@ -190,6 +190,30 @@ std::vector<uint256> GetAddressesTxs(std::vector<std::pair<uint160, int>> &addre
     return result;
 }
 
+
+int  GetFirstBlockHeightForAddresses(std::vector<std::pair<uint160, int>> &addresses)
+{
+    std::vector<std::pair<CAddressIndexKey, CAmount> > addressIndex;
+    
+    for (auto& a: addresses) {
+        if (!GetAddressIndex(a.first, a.second, addressIndex)) {
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "No information available for address");
+        }
+    }
+    
+    if (addressIndex.size() == 0 ) return -1;
+    
+    int blockHeight = addressIndex[0].first.blockHeight;
+    
+    for (auto& a: addressIndex) {
+        int height = a.first.blockHeight;
+		if (height < blockHeight)
+            blockHeight = height;
+    }
+
+    return blockHeight;
+}
+
 bool IsAddressesHasTxs(std::vector<std::pair<uint160, int>> &addresses)
 {
 

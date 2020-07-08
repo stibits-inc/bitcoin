@@ -290,5 +290,5 @@ UniValue GetAddressesUtxos(std::vector<std::pair<uint160, int>> &addresses);
 bool GetAddressesUtxos(std::vector<std::pair<uint160, int>> &addresses, CDataStream& ss, uint32_t& count);
 std::vector<uint256>  GetAddressesTxs(std::vector<std::pair<uint160, int>> &addresses);
 int GetLastUsedIndex(std::vector<std::pair<uint160, int>> &addresses);
-
+int  GetFirstBlockHeightForAddresses(std::vector<std::pair<uint160, int>> &addresses);
 #endif
