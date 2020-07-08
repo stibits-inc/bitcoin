@@ -2,10 +2,8 @@
 #include <rpc/server.h>
 #include <rpc/util.h>
 
-
 int GetLastUsedExternalSegWitIndex(std::string& xpubkey);
 int GetFirstUsedBlock(std::string xpub);
-
 
 // RPC
 
@@ -50,7 +48,6 @@ UniValue stbtsgetlastusedhdindex(const JSONRPCRequest& request)
     if(xpubkey.size() == 0 || xpubkey[0] != 'x')
     {
         throw JSONRPCError(-1, "xpub is missing or invalid!!!");
-
     }
     
     if(xpubkey.size() == 0 || xpubkey[0] != 'x')
@@ -85,7 +82,7 @@ UniValue stbtsgetfirstusedblock(const JSONRPCRequest& request)
             "}\n"
             "\nResult\n"
             "[\n"
-            "  {firsusedtblock:val}\n"
+            "  {firstusedblock:val}\n"
             "]\n"
             "\nExamples:\n"
             + HelpExampleCli("stbtsgetfirstusedblock", "'{\"xpubkey\": \"xpub6Bgu572Y3EWgEq8gkVxmznPkb8hWkgYR9E6KTZN3pyM3hhC7WvwgHNchSCrC19a7nZ3ddyjwB26rbePuyATc55snUwWKkszRnvVwfmBshdS\"}'")
@@ -107,13 +104,12 @@ UniValue stbtsgetfirstusedblock(const JSONRPCRequest& request)
     }
     else
     {
-        throw JSONRPCError(-1, "xpub is missing or invalid!!!");
+        throw JSONRPCError(-1, "xpub is missing!!");
     }
 
     if(xpubkey.size() == 0 || xpubkey[0] != 'x')
     {
         throw JSONRPCError(-1, "xpub is missing or invalid!!!");
-
     }
 
     int r = GetFirstUsedBlock(xpubkey);
@@ -121,11 +117,10 @@ UniValue stbtsgetfirstusedblock(const JSONRPCRequest& request)
     if(r == -2)
     {
         throw JSONRPCError(-1, "xpub is invalid!!!");
-
     }
     
     UniValue obj(UniValue::VOBJ);
-    obj.pushKV("firsusedtblock", r);
+    obj.pushKV("firstusedblock", r);
     
     return obj;
 }
