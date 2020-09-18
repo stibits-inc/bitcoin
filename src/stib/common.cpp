@@ -526,7 +526,7 @@ uint32_t RecoverFromXPUB(std::string xpubkey, CDataStream& ss)
     if(!xpub.IsValid())
     {
         LogPrintf("provided xpub is not valid !!!!!\n");
-        return;
+        return 0;
     }
     
     uint32_t count =
